@@ -36,7 +36,8 @@ library
         aeson,
         text,
         req,
-        time
+        time,
+        mtl
     hs-source-dirs:   src
     default-language: Haskell2010
 
@@ -53,7 +54,7 @@ executable reddit-oauth2
         reddit-oauth2,
         bytestring,
         text,
-        aeson-pretty
+        mtl
 
     hs-source-dirs:   app
     default-language: Haskell2010

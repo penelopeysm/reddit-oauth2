@@ -2,6 +2,7 @@
 
 module Main where
 
+import Control.Monad.Reader
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Lazy.Char8 as BL
@@ -20,11 +21,13 @@ main = do
   redditID <- getEnvAsText "REDDIT_ID"
   redditSecret <- getEnvAsText "REDDIT_SECRET"
   let userAgent = "github:penelopeysm/reddit-oauth2 by /u/is_a_togekiss"
-  let settings = Settings {username = redditUser, password = redditPassword, clientID = redditID, clientSecret = redditSecret, userAgent = userAgent}
+  let creds = Credentials {username = redditUser, password = redditPassword, clientID = redditID, clientSecret = redditSecret}
 
-  token <- Reddit.authWithCredentials settings
-  putStrLn ""
-  putStrLn ""
+  env <- Reddit.authWithCredentials creds userAgent
 
-  resp <- Reddit.user userAgent "is_a_togekiss" token
-  B.putStrLn resp
+  flip runReaderT env $ do
+    resp1 <- Reddit.user "is_a_togekiss"
+    liftIO $ B.putStrLn resp1
+
+    resp2 <- Reddit.subreddit "pokemontrades" (Top All)
+    liftIO $ B.putStrLn resp2
