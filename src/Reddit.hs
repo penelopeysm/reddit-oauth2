@@ -115,6 +115,8 @@ data RedditException = TokenExpiredException deriving (Show)
 
 instance Exception RedditException
 
+-- | TODO: Don't check before using it, check the response headers instead to
+-- determine if token has expired
 checkTokenValidity :: ReaderT Env IO ()
 checkTokenValidity = do
   expiryTime <- reader envTokenExpiresAt
@@ -160,3 +162,18 @@ subreddit sr sort = do
     let uri = https oauth /: "r" /: sr /: endpoint
     response <- req GET uri NoReqBody bsResponse (withUAToken env <> tf_params)
     pure $ responseBody response
+
+
+-- | Get the most recent 25 comments on a subreddit. This endpoint is
+-- undocumented!
+subComments :: Text -> ReaderT Env IO ByteString
+subComments sr = do
+  env <- ask
+  checkTokenValidity
+  liftIO $ runReq defaultHttpConfig $ do
+    let uri = https oauth /: "r" /: sr /: "comments"
+    response <- req GET uri NoReqBody bsResponse (withUAToken env)
+    pure $ responseBody response
+
+
+-- TODO: Model types more properly

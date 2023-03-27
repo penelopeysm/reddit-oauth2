@@ -26,8 +26,8 @@ main = do
   env <- Reddit.authWithCredentials creds userAgent
 
   flip runReaderT env $ do
-    resp1 <- Reddit.user "is_a_togekiss"
-    liftIO $ B.putStrLn resp1
+    -- resp1 <- Reddit.user "is_a_togekiss"
+    -- liftIO $ B.putStrLn resp1
 
-    resp2 <- Reddit.subreddit "pokemontrades" (Top All)
+    resp2 <- Reddit.subComments "pokemontrades"
     liftIO $ B.putStrLn resp2
