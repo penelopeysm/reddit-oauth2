@@ -59,7 +59,7 @@ jobs:
         run: cabal build
 
       - name: Build documentation
-        run: cabal haddock --keep-going
+        run: cabal haddock --disable-documentation
 
       - name: Clone gh-pages branch
         uses: actions/checkout@v3
