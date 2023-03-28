@@ -1,8 +1,12 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE GADTs #-}
 
 module Reddit
-  ( -- * Users
+  ( -- * Types
+    RedditT (..),
+    runRedditT,
+    runRedditT',
+    -- * Users
 
     --
     -- $users
@@ -22,6 +26,7 @@ module Reddit
     --
     -- $comments
     Reddit.Types.Comment (..),
+    addNewComment,
     subredditComments,
 
     -- * Streams
@@ -30,6 +35,8 @@ module Reddit
     -- $streams
     stream,
     stream',
+    postStream,
+    commentStream
   )
 where
 
@@ -41,6 +48,7 @@ import Data.Aeson
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B
+import qualified Data.ByteString.Lazy.Char8 as BSLC
 import Data.List (union, (\\))
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -49,6 +57,18 @@ import Data.Time.Clock
 import Network.HTTP.Req
 import Reddit.Auth (RedditEnv (..))
 import Reddit.Types
+
+-- | The type of Reddit computations.
+type RedditT = ReaderT RedditEnv IO
+
+-- | Run a Reddit computation using an @env@ value obtained through
+-- authorisation (see "Reddit.Auth").
+runRedditT :: RedditT a -> RedditEnv -> IO a
+runRedditT = runReaderT
+
+-- | @runRedditT'@ is @flip runRedditT@ and is often more ergonomic.
+runRedditT' :: RedditEnv -> RedditT a -> IO a
+runRedditT' = flip runReaderT
 
 oauth :: Text
 oauth = "oauth.reddit.com"
@@ -62,7 +82,7 @@ instance Exception RedditException
 
 -- | TODO: Don't check before using it, check the response headers instead to
 -- determine if token has expired
-checkTokenValidity :: ReaderT RedditEnv IO ()
+checkTokenValidity :: RedditT ()
 checkTokenValidity = do
   expiryTime <- reader envTokenExpiresAt
   currentTime <- liftIO getCurrentTime
@@ -76,7 +96,7 @@ checkTokenValidity = do
 -- TODO: Implement the right type.
 
 -- | Get information about a user
-user :: Text -> ReaderT RedditEnv IO ByteString
+user :: Text -> RedditT ByteString
 user username = do
   env <- ask
   checkTokenValidity
@@ -84,6 +104,27 @@ user username = do
     let uri = https oauth /: "user" /: username /: "about"
     response <- req GET uri NoReqBody bsResponse (withUAToken env)
     pure $ responseBody response
+
+-- $comments
+-- Blah.
+
+-- | Add a new comment as a reply to an existing post or comment.
+addNewComment ::
+  -- | This constraint ensures that you can only reply to comments and posts.
+  CanCommentOn a =>
+  -- | The ID of the thing being replied to.
+  ID a ->
+  -- | The contents of the comment (in Markdown)
+  Text ->
+  RedditT ()
+addNewComment x body = do
+  env <- ask
+  let fullName = mkFullNameFromID x
+  liftIO $ runReq defaultHttpConfig $ do
+    let uri = https oauth /: "api" /: "comment"
+    let req_params = withUAToken env
+    let body_params = "thing_id" =: fullName <> "text" =: body
+    void $ req POST uri (ReqBodyUrlEnc body_params) ignoreResponse req_params
 
 -- $posts
 --
@@ -95,7 +136,7 @@ data Timeframe = Hour | Day | Week | Month | Year | All
 data SubredditSort = Hot | New | Random | Rising | Top Timeframe | Controversial Timeframe
 
 -- | Get the first 25 posts on a subreddit
-subredditPosts :: Text -> SubredditSort -> ReaderT RedditEnv IO [Post]
+subredditPosts :: Text -> SubredditSort -> RedditT [Post]
 subredditPosts sr sort = do
   env <- ask
   checkTokenValidity
@@ -121,7 +162,7 @@ subredditPosts sr sort = do
 
 -- | Get the most recent 25 comments on a subreddit. This endpoint is
 -- undocumented!
-subredditComments :: Text -> ReaderT RedditEnv IO [Comment]
+subredditComments :: Text -> RedditT [Comment]
 subredditComments sr = do
   env <- ask
   checkTokenValidity
@@ -133,41 +174,124 @@ subredditComments sr = do
 
 -- $streams
 --
--- 'Streams' are a popular feature in the Python PRAW library; they are
+-- @Stream@s are a popular feature in the Python PRAW library. They are
 -- reproduced here as they are useful for accomplishing a variety of bot-related
--- tasks.
+-- tasks, usually iterating over a list of most recent posts / comments on a
+-- subreddit.
 --
--- You're most likely to use the @stream@ function. Here are a couple of usage
--- examples:
+-- The most general function is @stream@. Here is a simple usage example, which
+-- logs each new comment posted in \/r\/haskell to standard output, scans it for
+-- the phrase @"Haskell is great!"@, and if that is found, replies to them with
+-- @"Indeed, it is!"@. It is assumed that you have obtained an @env@ value from
+-- the authentication procedure (see "Reddit.Auth").
 --
--- TODO rewrite this T_T
+-- @postStream@ and @commentStream@ are specialised versions which save a tiny
+-- bit of typing.
+--
+-- @
+-- {-# LANGUAGE OverloadedStrings #-}
+-- {-# LANGUAGE OverloadedDotSyntax #-}
+--
+-- main = do
+--   env <- ...
+--
+--   let replyToGreatHaskell :: Int -> Comment -> RedditT Int
+--       replyToGreatHaskell count cmt = do
+--         let p = liftIO . T.putStrLn
+--         p ""
+--         p "Found new comment!"
+--         p $ "By    : \/u\/" <> cmt.author
+--         p $ "Link  : " <> cmt.url
+--         p $ "Text  : " <> cmt.body
+--         p $ T.pack ("Comments seen so far: " <> show (count + 1))
+--
+--         let triggerText = "Haskell is great!"
+--         let replyText = "Indeed, it is!"
+--         when (triggerText \`T.isInfixOf\` cmt.body)
+--          (p "Replying to it..." >> addNewComment cmt.id' replyText)
+--         pure (count + 1)
+--
+--   runRedditT' env $ do
+--     stream True replyToGreatHaskell 0 (subredditComments "haskell")
+-- @
 
 -- Helper function.
-streamInner :: Eq a => [a] -> ReaderT RedditEnv IO [a] -> (t -> a -> IO t) -> t -> ReaderT RedditEnv IO ()
-streamInner seen src cb cbInit = do
+streamInner :: Eq a => [a] -> (t -> a -> RedditT t) -> t -> RedditT [a] -> RedditT ()
+streamInner seen cb cbInit src = do
   liftIO $ threadDelay 5000000
   items <- src
   let new = items \\ seen
-  cbUpdated <- liftIO $ foldM cb cbInit new
-  streamInner (seen `union` items) src cb cbUpdated
+  cbUpdated <- foldM cb cbInit new
+  streamInner (seen `union` items) cb cbUpdated src
 
--- | TODO rewrite this documentation T_T
-stream :: Eq a
-       => Bool  -- ^ Whether to ignore the first batch of requests.
-       -> ReaderT RedditEnv IO [a]  -- ^ The source of things to iterate over.
-       -> (t -> a -> IO t)  -- A callback function to execute on all things found.
-       -> t  -- ^ The initial state for the callback function.
-       -> ReaderT RedditEnv IO ()
-stream ignoreExisting src cb cbInit = do
+-- | If you have an action which generates a list of things (with the type
+-- @RedditT [a]@), then @stream@ turns this an action which
+-- executes a callback function on an infinite list of things. It does so by
+-- repeatedly fetching the list of things (every five seconds). Here, \'things\'
+-- refers to comments, posts, and so on.
+--
+-- Apart from the thing being acted on, the callback function is allowed to also
+-- take, as input, some kind of state, and update that state by returning a new
+-- value. This allows the user to, for example, keep track of how many things
+-- have been seen so far, or perform actions conditionally based on what the
+-- stream has previously thrown up.
+stream ::
+  Eq a =>
+  -- | Whether to ignore the things found in the first request. Since the first
+  -- request is run when the stream is started, this essentially amounts to
+  -- ignoring everything posted /before/ the stream is started. You will most
+  -- likely want this to be @True@.
+  Bool ->
+  -- | A callback function to execute on all things found.
+  (state -> a -> RedditT state) ->
+  -- | The initial state for the callback function.
+  state ->
+  -- | The source of things to iterate over.
+  RedditT [a] ->
+  RedditT ()
+stream ignoreExisting cb cbInit src = do
   first <- src
   let seen = if ignoreExisting then first else []
-  streamInner seen src cb cbInit
+  streamInner seen cb cbInit src
 
--- | TODO rewrite this documentation T_T
-stream' :: Eq a
-        => Bool  -- ^ Whether to ignore the first batch of requests.
-        -> ReaderT RedditEnv IO [a]  -- ^ The source of things to iterate over.
-        -> (a -> IO ())  -- A callback function to execute on all things found.
-        -> ReaderT RedditEnv IO ()
-stream' ignoreExisting src cb' =
-  stream ignoreExisting src (const cb') ()
+-- | @stream'@ is a simpler version of @stream@, which accepts a callback that
+-- doesn't use state.
+stream' ::
+  Eq a =>
+  -- | Whether to ignore the first request.
+  Bool ->
+  -- | A callback function to execute on all things found.
+  (a -> RedditT ()) ->
+  -- | The source of things to iterate over.
+  RedditT [a] ->
+  RedditT ()
+stream' ignoreExisting cb' =
+  stream ignoreExisting (const cb') ()
+
+-- | Get a stream of new posts on a subreddit.
+postStream ::
+  -- | Whether to ignore the first request.
+  Bool ->
+  -- | Callback function.
+  (state -> Post -> RedditT state) ->
+  -- | Initial state for callback.
+  state ->
+  -- | Subreddit name.
+  Text ->
+  RedditT ()
+postStream ignoreExisting cb cbInit sr = stream ignoreExisting cb cbInit (subredditPosts sr New)
+
+-- | Get a stream of new comments on a subreddit. Note that this also includes
+-- edited comments (that's not a design choice, it's just how the Reddit API
+-- works).
+commentStream ::
+  -- | Whether to ignore the first request.
+  Bool ->
+  -- | Callback function.
+  (state -> Comment -> RedditT state) ->
+  -- | Initial state for callback.
+  state ->
+  -- | Subreddit name.
+  Text ->
+  RedditT ()
+commentStream ignoreExisting cb cbInit sr = stream ignoreExisting cb cbInit (subredditComments sr)

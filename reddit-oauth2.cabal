@@ -31,9 +31,11 @@ library
 
     default-extensions:
       OverloadedStrings
+      OverloadedRecordDot
+      ScopedTypeVariables
 
     build-depends:
-        base ^>=4.16.4.0,
+        base ^>=4.16.4.0 || ^>=4.17.0.0,
         bytestring,
         aeson,
         text,
@@ -50,7 +52,7 @@ executable reddit-oauth2
       OverloadedStrings
 
     build-depends:
-        base ^>=4.16.4.0,
+        base ^>=4.16.4.0 || ^>=4.17.0.0,
         reddit-oauth2,
         bytestring,
         text,

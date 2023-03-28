@@ -29,19 +29,23 @@ main = do
 
   env <- Auth.withCredentials creds userAgent
 
-  let callback_with_state :: Int -> Comment -> IO Int
-      callback_with_state count cmt = do
-        T.putStrLn ""
-        T.putStrLn ""
-        T.putStrLn "Found new comment!"
-        T.putStrLn $ "By    : /u/" <> cmt.author
-        T.putStrLn $ "Link  : " <> cmt.url
-        T.putStrLn $ "Text  : " <> cmt.body
-        T.putStrLn $ T.pack ("Comments seen so far: " <> show (count + 1))
+  let replyToGreatHaskell :: Int -> Comment -> RedditT Int
+      replyToGreatHaskell count cmt = do
+        let p = liftIO . T.putStrLn
+        p ""
+        p "Found new comment!"
+        p $ "By    : /u/" <> cmt.author
+        p $ "Link  : " <> cmt.url
+        p $ "Text  : " <> cmt.body
+        p $ T.pack ("Comments seen so far: " <> show (count + 1))
+
+        -- Don't want to actually spam the sub.
+
+        -- let triggerText = "Haskell is great!"
+        -- let replyText = "Indeed, it is!"
+        -- when (triggerText `T.isInfixOf` cmt.body && cmt.author /= username)
+        --  (p "Replying to it..." >> addNewComment cmt.id' replyText)
         pure (count + 1)
 
-  flip runReaderT env $ do
-    -- cmts <- subredditComments "pokemontrades"
-    -- liftIO $ print cmts
-
-    stream True (subredditComments "pokemontrades") callback_with_state 0
+  runRedditT' env $ do
+    stream True replyToGreatHaskell 0 (subredditComments "pokemontrades")
