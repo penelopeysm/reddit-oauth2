@@ -5,23 +5,17 @@ on:
 
 jobs:
   build:
-    name: Docs with GHC ${{ matrix.ghc-version }}
+    name: Docs with GHC 9.2
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest]
-        ghc-version: ['9.2']
 
     steps:
       - uses: actions/checkout@v3
 
-      - name: Set up GHC ${{ matrix.ghc-version }}
+      - name: Set up GHC 9.2
         uses: haskell/actions/setup@v2
         id: setup
         with:
-          ghc-version: ${{ matrix.ghc-version }}
-          # Defaults, added for clarity:
+          ghc-version: 9.2
           cabal-version: 'latest'
           cabal-update: true
 
@@ -58,7 +52,7 @@ jobs:
       - name: Build
         run: cabal build
 
-      - name: Build documentation
+      - name: Build documentation (but not for dependencies; crypto-api keeps crashing)
         run: cabal haddock --disable-documentation
 
       - name: Clone gh-pages branch
