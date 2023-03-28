@@ -1,4 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedRecordDot #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Main where
 
@@ -8,7 +10,9 @@ import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Lazy.Char8 as BL
 import Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.Text.IO as T
 import Reddit
+import qualified Reddit.Auth as Auth
 import System.Environment (getEnv)
 
 getEnvAsText :: Text -> IO Text
@@ -16,18 +20,28 @@ getEnvAsText = fmap T.pack . getEnv . T.unpack
 
 main :: IO ()
 main = do
-  redditUser <- getEnvAsText "REDDIT_USERNAME"
-  redditPassword <- getEnvAsText "REDDIT_PASSWORD"
-  redditID <- getEnvAsText "REDDIT_ID"
-  redditSecret <- getEnvAsText "REDDIT_SECRET"
+  username <- getEnvAsText "REDDIT_USERNAME"
+  password <- getEnvAsText "REDDIT_PASSWORD"
+  clientID <- getEnvAsText "REDDIT_ID"
+  clientSecret <- getEnvAsText "REDDIT_SECRET"
   let userAgent = "github:penelopeysm/reddit-oauth2 by /u/is_a_togekiss"
-  let creds = Credentials {username = redditUser, password = redditPassword, clientID = redditID, clientSecret = redditSecret}
+  let creds = Auth.Credentials {..}
 
-  env <- Reddit.authWithCredentials creds userAgent
+  env <- Auth.withCredentials creds userAgent
+
+  let callback_with_state :: Int -> Comment -> IO Int
+      callback_with_state count cmt = do
+        T.putStrLn ""
+        T.putStrLn ""
+        T.putStrLn "Found new comment!"
+        T.putStrLn $ "By    : /u/" <> cmt.author
+        T.putStrLn $ "Link  : " <> cmt.url
+        T.putStrLn $ "Text  : " <> cmt.body
+        T.putStrLn $ T.pack ("Comments seen so far: " <> show (count + 1))
+        pure (count + 1)
 
   flip runReaderT env $ do
-    -- resp1 <- Reddit.user "is_a_togekiss"
-    -- liftIO $ B.putStrLn resp1
+    -- cmts <- subredditComments "pokemontrades"
+    -- liftIO $ print cmts
 
-    resp2 <- Reddit.subComments "pokemontrades"
-    liftIO $ B.putStrLn resp2
+    stream True (subredditComments "pokemontrades") callback_with_state 0

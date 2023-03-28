@@ -22,16 +22,18 @@ maintainer:         penelopeysm@gmail.com
 extra-source-files: CHANGELOG.md
 
 library
-    exposed-modules:  Reddit
+    exposed-modules:
+      Reddit,
+      Reddit.Auth
 
-    -- Modules included in this library but not exported.
-    -- other-modules:
+    other-modules:
+      Reddit.Types
 
-    -- LANGUAGE extensions used by modules in this package.
-    -- other-extensions:
+    default-extensions:
+      OverloadedStrings
+
     build-depends:
         base ^>=4.16.4.0,
-        -- hoauth2 == 2.7.0,
         bytestring,
         aeson,
         text,
@@ -44,11 +46,9 @@ library
 executable reddit-oauth2
     main-is:          Main.hs
 
-    -- Modules included in this executable, other than Main.
-    -- other-modules:
+    default-extensions:
+      OverloadedStrings
 
-    -- LANGUAGE extensions used by modules in this package.
-    -- other-extensions:
     build-depends:
         base ^>=4.16.4.0,
         reddit-oauth2,

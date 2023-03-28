@@ -1,114 +1,59 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Reddit where
+module Reddit
+  ( -- * Users
 
+    --
+    -- $users
+    user,
+
+    -- * Posts
+
+    --
+    -- $posts
+    Reddit.Types.Post (..),
+    Timeframe (..),
+    SubredditSort (..),
+    subredditPosts,
+
+    -- * Comments
+
+    --
+    -- $comments
+    Reddit.Types.Comment (..),
+    subredditComments,
+
+    -- * Streams
+
+    --
+    -- $streams
+    stream,
+    stream',
+  )
+where
+
+import Control.Concurrent (threadDelay)
 import Control.Exception (Exception (..), throwIO)
+import Control.Monad (foldM)
 import Control.Monad.Reader
 import Data.Aeson
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B
+import Data.List (union, (\\))
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
 import Data.Time.Clock
 import Network.HTTP.Req
-
-data Credentials = Credentials
-  { username :: Text,
-    password :: Text,
-    clientID :: Text,
-    clientSecret :: Text
-  }
-  deriving (Show)
-
-data TokenInternal = TokenInternal
-  { _access_token :: Text,
-    _token_type :: Text,
-    _expires_in :: Int,
-    _scope :: Text
-  }
-  deriving (Show)
-
-instance FromJSON TokenInternal where
-  parseJSON (Object v) =
-    TokenInternal
-      <$> v
-      .: "access_token"
-      <*> v
-      .: "token_type"
-      <*> v
-      .: "expires_in"
-      <*> v
-      .: "scope"
-
-data Token = Token
-  { token :: ByteString,
-    token_type :: ByteString,
-    expires_at :: UTCTime,
-    scope :: ByteString
-  }
-  deriving (Show)
-
-convertToken :: TokenInternal -> IO Token
-convertToken t = do
-  currentTime <- getCurrentTime
-  let seconds = secondsToNominalDiffTime . realToFrac $ _expires_in t
-  let expires_at = addUTCTime seconds currentTime
-  pure $
-    Token
-      { token = TE.encodeUtf8 (_access_token t),
-        token_type = TE.encodeUtf8 (_token_type t),
-        scope = TE.encodeUtf8 (_scope t),
-        expires_at = expires_at
-      }
-
--- | Everything required to query the Reddit API.
-data Env = Env
-  { envToken :: ByteString,
-    envTokenType :: ByteString,
-    envTokenExpiresAt :: UTCTime,
-    envTokenScope :: ByteString,
-    envUserAgent :: ByteString
-  }
-  deriving (Show)
-
--- | Get an Env value by supplying user account credentials. Only to be used for
--- quick scripts, etc.
-authWithCredentials :: Credentials -> Text -> IO Env
-authWithCredentials creds userAgent = do
-  tokenInternal <- runReq defaultHttpConfig $ do
-    let uri = https "www.reddit.com" /: "api" /: "v1" /: "access_token"
-    let body =
-          ReqBodyUrlEnc
-            ( "grant_type"
-                =: ("password" :: Text)
-                <> "username"
-                =: username creds
-                <> "password"
-                =: password creds
-            )
-    let options = basicAuth (TE.encodeUtf8 (clientID creds)) (TE.encodeUtf8 (clientSecret creds))
-    response <- req POST uri body lbsResponse options
-    throwDecode (responseBody response)
-
-  currentTime <- getCurrentTime
-  let seconds = secondsToNominalDiffTime . realToFrac $ _expires_in tokenInternal
-  let expires_at = addUTCTime seconds currentTime
-  pure $
-    Env
-      { envToken = TE.encodeUtf8 (_access_token tokenInternal),
-        envTokenType = TE.encodeUtf8 (_token_type tokenInternal),
-        envTokenScope = TE.encodeUtf8 (_scope tokenInternal),
-        envTokenExpiresAt = expires_at,
-        envUserAgent = TE.encodeUtf8 userAgent
-      }
+import Reddit.Auth (RedditEnv (..))
+import Reddit.Types
 
 oauth :: Text
 oauth = "oauth.reddit.com"
 
-withUAToken :: Env -> Option 'Https
+withUAToken :: RedditEnv -> Option 'Https
 withUAToken env = header "user-agent" (envUserAgent env) <> oAuth2Bearer (envToken env)
 
 data RedditException = TokenExpiredException deriving (Show)
@@ -117,7 +62,7 @@ instance Exception RedditException
 
 -- | TODO: Don't check before using it, check the response headers instead to
 -- determine if token has expired
-checkTokenValidity :: ReaderT Env IO ()
+checkTokenValidity :: ReaderT RedditEnv IO ()
 checkTokenValidity = do
   expiryTime <- reader envTokenExpiresAt
   currentTime <- liftIO getCurrentTime
@@ -125,8 +70,13 @@ checkTokenValidity = do
     (nominalDiffTimeToSeconds (diffUTCTime currentTime expiryTime) > 0)
     (liftIO (throwIO TokenExpiredException))
 
+-- $users
+--
+-- Fetch a user.
+-- TODO: Implement the right type.
+
 -- | Get information about a user
-user :: Text -> ReaderT Env IO ByteString
+user :: Text -> ReaderT RedditEnv IO ByteString
 user username = do
   env <- ask
   checkTokenValidity
@@ -135,17 +85,22 @@ user username = do
     response <- req GET uri NoReqBody bsResponse (withUAToken env)
     pure $ responseBody response
 
+-- $posts
+--
+-- Fetch the first 25 posts from a given subreddit ordered by the
+-- @SubredditSort@ parameter.
+
 data Timeframe = Hour | Day | Week | Month | Year | All
 
 data SubredditSort = Hot | New | Random | Rising | Top Timeframe | Controversial Timeframe
 
 -- | Get the first 25 posts on a subreddit
-subreddit :: Text -> SubredditSort -> ReaderT Env IO ByteString
-subreddit sr sort = do
+subredditPosts :: Text -> SubredditSort -> ReaderT RedditEnv IO [Post]
+subredditPosts sr sort = do
   env <- ask
   checkTokenValidity
   let timeframe_text tf = case tf of
-        Hour -> "hour" :: Text  -- the type checker needs help
+        Hour -> "hour" :: Text -- the type checker needs help
         Day -> "day"
         Week -> "week"
         Month -> "month"
@@ -158,22 +113,61 @@ subreddit sr sort = do
         Rising -> ("rising", mempty)
         Top tf -> ("top", "t" =: timeframe_text tf)
         Controversial tf -> ("controversial", "t" =: timeframe_text tf)
-  liftIO $ runReq defaultHttpConfig $ do
+  respBody <- liftIO $ runReq defaultHttpConfig $ do
     let uri = https oauth /: "r" /: sr /: endpoint
-    response <- req GET uri NoReqBody bsResponse (withUAToken env <> tf_params)
-    pure $ responseBody response
-
+    response <- req GET uri NoReqBody lbsResponse (withUAToken env <> tf_params)
+    pure (responseBody response)
+  posts <$> throwDecode respBody
 
 -- | Get the most recent 25 comments on a subreddit. This endpoint is
 -- undocumented!
-subComments :: Text -> ReaderT Env IO ByteString
-subComments sr = do
+subredditComments :: Text -> ReaderT RedditEnv IO [Comment]
+subredditComments sr = do
   env <- ask
   checkTokenValidity
-  liftIO $ runReq defaultHttpConfig $ do
+  respBody <- liftIO $ runReq defaultHttpConfig $ do
     let uri = https oauth /: "r" /: sr /: "comments"
-    response <- req GET uri NoReqBody bsResponse (withUAToken env)
-    pure $ responseBody response
+    response <- req GET uri NoReqBody lbsResponse (withUAToken env)
+    pure (responseBody response)
+  comments <$> throwDecode respBody
 
+-- $streams
+--
+-- 'Streams' are a popular feature in the Python PRAW library; they are
+-- reproduced here as they are useful for accomplishing a variety of bot-related
+-- tasks.
+--
+-- You're most likely to use the @stream@ function. Here are a couple of usage
+-- examples:
+--
+-- TODO rewrite this T_T
 
--- TODO: Model types more properly
+-- Helper function.
+streamInner :: Eq a => [a] -> ReaderT RedditEnv IO [a] -> (t -> a -> IO t) -> t -> ReaderT RedditEnv IO ()
+streamInner seen src cb cbInit = do
+  liftIO $ threadDelay 5000000
+  items <- src
+  let new = items \\ seen
+  cbUpdated <- liftIO $ foldM cb cbInit new
+  streamInner (seen `union` items) src cb cbUpdated
+
+-- | TODO rewrite this documentation T_T
+stream :: Eq a
+       => Bool  -- ^ Whether to ignore the first batch of requests.
+       -> ReaderT RedditEnv IO [a]  -- ^ The source of things to iterate over.
+       -> (t -> a -> IO t)  -- A callback function to execute on all things found.
+       -> t  -- ^ The initial state for the callback function.
+       -> ReaderT RedditEnv IO ()
+stream ignoreExisting src cb cbInit = do
+  first <- src
+  let seen = if ignoreExisting then first else []
+  streamInner seen src cb cbInit
+
+-- | TODO rewrite this documentation T_T
+stream' :: Eq a
+        => Bool  -- ^ Whether to ignore the first batch of requests.
+        -> ReaderT RedditEnv IO [a]  -- ^ The source of things to iterate over.
+        -> (a -> IO ())  -- A callback function to execute on all things found.
+        -> ReaderT RedditEnv IO ()
+stream' ignoreExisting src cb' =
+  stream ignoreExisting src (const cb') ()
