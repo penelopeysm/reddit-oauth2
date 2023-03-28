@@ -63,7 +63,7 @@ jobs:
 
       - name: Update content
         run: |
-          cp -r dist-newstyle/build/*/*/*/doc/html/* gh-pages
+          cp -r dist-newstyle/build/*/*/*/doc/html/reddit-oauth2/* gh-pages
           cd gh-pages
           git config --local user.name "GitHub Actions"
           git config --local user.email "<>"
