@@ -1,0 +1,78 @@
+name: docs
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    name: Docs with GHC ${{ matrix.ghc-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        ghc-version: ['9.2']
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up GHC ${{ matrix.ghc-version }}
+        uses: haskell/actions/setup@v2
+        id: setup
+        with:
+          ghc-version: ${{ matrix.ghc-version }}
+          # Defaults, added for clarity:
+          cabal-version: 'latest'
+          cabal-update: true
+
+      - name: Installed minor versions of GHC and Cabal
+        shell: bash
+        run: |
+          GHC_VERSION=$(ghc --numeric-version)
+          CABAL_VERSION=$(cabal --numeric-version)
+          echo "GHC_VERSION=${GHC_VERSION}"     >> "${GITHUB_ENV}"
+          echo "CABAL_VERSION=${CABAL_VERSION}" >> "${GITHUB_ENV}"
+
+      - name: Restore cached dependencies
+        uses: actions/cache/restore@v3
+        id: cache
+        with:
+          path: ${{ steps.setup.outputs.cabal-store }}
+          key: ghc-${{ env.GHC_VERSION }}-cabal-${{ env.CABAL_VERSION }}-plan-${{ hashFiles('**/plan.json') }}
+          restore-keys: |
+            ghc-${{ env.GHC_VERSION }}-cabal-${{ env.CABAL_VERSION }}-
+
+      - name: Install dependencies
+        run: cabal build all --only-dependencies
+
+      # Cache dependencies already here, so that we do not have to rebuild them should the subsequent steps fail.
+      - name: Save cached dependencies
+        uses: actions/cache/save@v3
+        # Caches are immutable, trying to save with the same key would error.
+        if: ${{ !steps.cache.outputs.cache-hit
+          || steps.cache.outputs.cache-primary-key != steps.cache.outputs.cache-matched-key }}
+        with:
+          path: ${{ steps.setup.outputs.cabal-store }}
+          key: ${{ steps.cache.outputs.cache-primary-key }}
+
+      - name: Build
+        run: cabal build
+
+      - name: Build documentation
+        run: cabal haddock
+
+      - name: Clone gh-pages branch
+        uses: actions/checkout@v3
+        with:
+          ref: gh-pages
+          path: gh-pages
+
+      - name: Update content
+        run: |
+          cp -r dist-newstyle/build/*/*/*/doc/html/* gh-pages
+          cd gh-pages
+          git config --local user.name "GitHub Actions"
+          git config --local user.email "<>"
+          git add -A
+          git commit -m "Update online documentation" || true
+          git push
