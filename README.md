@@ -1,6 +1,12 @@
 ## reddit-oauth2
 
-Right now this is just a couple of functions, but this will (hopefully, eventually) become a Haskell library for interacting with the [Reddit OAuth2 API](https://www.reddit.com/dev/api).
+A collection of functions for interacting with the [Reddit OAuth2 API](https://www.reddit.com/dev/api).
+It's enough to write a simple bot with, though.
+
+I only plan to release this on Hackage when this is at least semi-complete.
+Documentation for this package can be found at https://penelopeysm.github.io/reddit-oauth2/Reddit.html.
+
+### Other links
 
 Further documentation of the API is available at https://github.com/reddit-archive/reddit/wiki.
 

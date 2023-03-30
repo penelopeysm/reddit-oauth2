@@ -1,11 +1,43 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs #-}
 
+{-|
+Module      : Reddit
+Description : Functions to interact with the Reddit OAuth2 API
+Copyright   : (c) Penelope Y. 2023
+License     : MIT
+Maintainer  : penelopeysm@gmail.com
+Stability   : experimental
+
+@reddit-oauth2@ provides a collection of functions to query the Reddit OAuth2 API.
+
+It is currently very primitive, but contains enough stuff to let you make a bot
+that replies to certain phrases found in comments / posts (which is a very
+common use case).
+
+It is probably easiest to demonstrate this with an example. One such example is
+provided in @src/Reddit/Example.hs@. When run, this script will log each new
+comment posted in \/r\/haskell to standard output, scans it for the phrase
+@"Haskell is great!!!!!!!!!"@, and if that is found, replies to them with
+@"Indeed, it is!"@.
+
+(Even though I don't think many people post that /exact/
+phrase on \/r\/haskell, I put in 9 exclamation marks because I don't want to be
+morally responsible for somebody gratuitously importing it.)
+-}
+
 module Reddit
   ( -- * Types
+    RedditEnv,
     RedditT (..),
     runRedditT,
     runRedditT',
+    -- * Authentication with account credentials
+
+    -- $credentials
+    Credentials (..),
+    withCredentials,
+
     -- * Users
 
     --
@@ -55,10 +87,20 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
 import Data.Time.Clock
 import Network.HTTP.Req
-import Reddit.Auth (RedditEnv (..))
+import qualified Reddit.Auth as Auth
 import Reddit.Types
 
--- | The type of Reddit computations.
+-- | Everything required to query the Reddit API.
+data RedditEnv = RedditEnv
+  { envToken :: ByteString,
+    envTokenType :: ByteString,
+    envTokenExpiresAt :: UTCTime,
+    envTokenScope :: ByteString,
+    envUserAgent :: ByteString
+  }
+  deriving (Show)
+
+-- | The type of a Reddit computation.
 type RedditT = ReaderT RedditEnv IO
 
 -- | Run a Reddit computation using an @env@ value obtained through
@@ -69,6 +111,71 @@ runRedditT = runReaderT
 -- | @runRedditT'@ is @flip runRedditT@ and is often more ergonomic.
 runRedditT' :: RedditEnv -> RedditT a -> IO a
 runRedditT' = flip runReaderT
+
+-- $credentials
+--
+-- This section describes the credentials needed for using the Reddit API as a
+-- \'script\'.
+--
+-- In order to obtain these, you will need to:
+--
+--   1. Log in using the account you want to post or query Reddit as (this may be
+--      a bot account, for example)
+--   2. Navigate to <https://www.reddit.com/prefs/apps>
+--   3. Click \'create another app\' at the bottom and select the \'script\' radio
+--      button
+--   4. Fill in the required details. For a personal script, the redirect URI is
+--      not important, set it to anything you like.
+--   5. Take note of the app ID (a string with random characters) and the secret
+--      (the same but longer). These become, respectively,  @clientID@ and
+--      @clientSecret@.
+--   6. @username@ and @password@ are the Reddit login credentials of the account
+--      you are using.
+--
+-- /Note:/ __Do NOT ever share your password or the client secret publicly!__
+--
+-- See also: <https://github.com/reddit-archive/reddit/wiki/OAuth2-Quick-Start-Example>
+
+data Credentials = Credentials
+  { username :: Text,
+    password :: Text,
+    clientID :: Text,
+    clientSecret :: Text
+  }
+  deriving (Show)
+
+-- | Exchange user account credentials for a RedditEnv, which is required to run
+-- all Reddit queries.
+withCredentials :: Credentials
+                -> Text  -- ^ Your user-agent. Reddit says you should use a unique and identifiable user-agent.
+                -> IO RedditEnv
+withCredentials creds userAgent = do
+  (tokenInternal :: Auth.TokenInternal) <- runReq defaultHttpConfig $ do
+    let uri = https "www.reddit.com" /: "api" /: "v1" /: "access_token"
+    let body =
+          ReqBodyUrlEnc
+            ( "grant_type"
+                =: ("password" :: Text)
+                <> "username"
+                =: username creds
+                <> "password"
+                =: password creds
+            )
+    let options = basicAuth (TE.encodeUtf8 (clientID creds)) (TE.encodeUtf8 (clientSecret creds))
+    response <- req POST uri body lbsResponse options
+    throwDecode (responseBody response)
+
+  currentTime <- getCurrentTime
+  let seconds = secondsToNominalDiffTime . realToFrac $ tokenInternal._expires_in
+  let expires_at = addUTCTime seconds currentTime
+  pure $
+    RedditEnv
+      { envToken = TE.encodeUtf8 tokenInternal._access_token,
+        envTokenType = TE.encodeUtf8 tokenInternal._token_type,
+        envTokenScope = TE.encodeUtf8 tokenInternal._scope,
+        envTokenExpiresAt = expires_at,
+        envUserAgent = TE.encodeUtf8 userAgent
+      }
 
 oauth :: Text
 oauth = "oauth.reddit.com"
@@ -179,41 +286,9 @@ subredditComments sr = do
 -- tasks, usually iterating over a list of most recent posts / comments on a
 -- subreddit.
 --
--- The most general function is @stream@. Here is a simple usage example, which
--- logs each new comment posted in \/r\/haskell to standard output, scans it for
--- the phrase @"Haskell is great!"@, and if that is found, replies to them with
--- @"Indeed, it is!"@. It is assumed that you have obtained an @env@ value from
--- the authentication procedure (see "Reddit.Auth").
---
--- @postStream@ and @commentStream@ are specialised versions which save a tiny
--- bit of typing.
---
--- @
--- {-# LANGUAGE OverloadedStrings #-}
--- {-# LANGUAGE OverloadedDotSyntax #-}
---
--- main = do
---   env <- ...
---
---   let replyToGreatHaskell :: Int -> Comment -> RedditT Int
---       replyToGreatHaskell count cmt = do
---         let p = liftIO . T.putStrLn
---         p ""
---         p "Found new comment!"
---         p $ "By    : \/u\/" <> cmt.author
---         p $ "Link  : " <> cmt.url
---         p $ "Text  : " <> cmt.body
---         p $ T.pack ("Comments seen so far: " <> show (count + 1))
---
---         let triggerText = "Haskell is great!"
---         let replyText = "Indeed, it is!"
---         when (triggerText \`T.isInfixOf\` cmt.body)
---          (p "Replying to it..." >> addNewComment cmt.id' replyText)
---         pure (count + 1)
---
---   runRedditT' env $ do
---     stream True replyToGreatHaskell 0 (subredditComments "haskell")
--- @
+-- The most general function is @stream@; a usage example is provided at the top
+-- of this file. @postStream@ and @commentStream@ are specialised versions which
+-- save a tiny bit of typing.
 
 -- Helper function.
 streamInner :: Eq a => [a] -> (t -> a -> RedditT t) -> t -> RedditT [a] -> RedditT ()
