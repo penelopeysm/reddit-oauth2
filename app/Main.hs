@@ -12,7 +12,6 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Reddit
-import qualified Reddit.Auth as Auth
 import System.Environment (getEnv)
 
 getEnvAsText :: Text -> IO Text
@@ -25,9 +24,9 @@ main = do
   clientID <- getEnvAsText "REDDIT_ID"
   clientSecret <- getEnvAsText "REDDIT_SECRET"
   let userAgent = "github:penelopeysm/reddit-oauth2 by /u/is_a_togekiss"
-  let creds = Auth.Credentials {..}
+  let creds = Credentials {..}
 
-  env <- Auth.withCredentials creds userAgent
+  env <- withCredentials creds userAgent
 
   let replyToGreatHaskell :: Int -> Comment -> RedditT Int
       replyToGreatHaskell count cmt = do

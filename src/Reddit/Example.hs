@@ -68,10 +68,18 @@ main = do
   -- However, the two lines above this are quite naive: in practice you have to
   -- account for exceptions, not least because Reddit servers seem to break
   -- about once every day. The easiest way to do this is to use the combinators
-  -- in Control.Exception.
-  -- There is a separate issue, in that you can't extract the value of `count`
-  -- so far if an exception is raised. If you wanted to do this properly, you
-  -- probably need to use something like an IORef to store the value of count.
+  -- in Control.Exception. The method shown here is quite crude, see e.g. the
+  -- Control.Exception docs, or Neil Mitchell's blog post
+  -- http://neilmitchell.blogspot.com/2015/05/handling-control-c-in-haskell.html
+  -- for a better discussion.
+  --
+  -- There is a related issue, in that you can't extract the value of `count` so
+  -- far if an exception is raised. If you wanted to do this properly, you
+  -- probably need to use something like a Data.IORef to store the value of count.
+  --
+  -- Finally, note that, even though this nominally catches Ctrl-C exceptions,
+  -- you can still kill the bot by pressing Ctrl-C twice:
+  -- https://stackoverflow.com/questions/2349233
   let protectedAction =
         catch
           -- The original action

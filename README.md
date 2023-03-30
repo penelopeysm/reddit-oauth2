@@ -1,7 +1,9 @@
 ## reddit-oauth2
 
 A collection of functions for interacting with the [Reddit OAuth2 API](https://www.reddit.com/dev/api).
-It's enough to write a simple bot with, though.
+
+It's very underdeveloped, but it's actually enough to write a simple bot with.
+See [src/Reddit/Example.hs](https://github.com/penelopeysm/reddit-oauth2/blob/main/src/Reddit/Example.hs) for an example of one.
 
 I only plan to release this on Hackage when this is at least semi-complete.
 Documentation for this package can be found at https://penelopeysm.github.io/reddit-oauth2/Reddit.html.
