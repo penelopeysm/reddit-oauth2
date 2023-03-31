@@ -40,6 +40,7 @@ main = do
         pure (count + 1)
 
   runRedditT' env $ do
-    p <- getComment (CommentID "jeccwt1")
+    -- p <- getComment (CommentID "jecmmme")
+    p <- getPost (PostID "1259u8o")
     liftIO $ print p
     -- stream True showC 0 (subredditComments "AskReddit")

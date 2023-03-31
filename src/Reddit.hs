@@ -221,6 +221,10 @@ user username = do
 -- Blah.
 
 -- | Fetch a list of comments by their IDs.
+-- 
+-- TODO: This uses the /api/info endpoint, which (apparently) provides slightly
+-- less information than /comments/<article>. For example, this endpoint doesn't
+-- provide a list of replies. This is probably worth investigating.
 getComments :: [ID Comment] -> RedditT [Comment]
 getComments c_ids = do
   env <- ask

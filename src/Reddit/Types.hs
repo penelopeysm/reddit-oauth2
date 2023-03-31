@@ -140,13 +140,15 @@ instance FromJSON (ID Award) where
 data Comment = Comment
   { id' :: ID Comment,
     url :: Text, -- | Permalink
+    score :: Int,
     author :: Text,  -- | Username of author
     author_id :: ID Account,
     body :: Text,  -- | Body text
     subreddit :: Text,   -- | Name of the subreddit it was posted on
     subreddit_id :: ID Subreddit,
     post_id :: ID Post,
-    parent_id :: Either (ID Comment) (ID Post),  -- | If the comment is a top-level post, this is the same as @post_id@; otherwise it's the ID of the parent comment.
+    is_submitter :: Bool, -- | Whether the commenter also made the post
+    parent_id :: Either (ID Comment) (ID Post),  -- | If the comment is a top-level comment, this is the same as @post_id@; otherwise it's the ID of the parent comment.
     created :: UTCTime
   }
   deriving (Eq, Ord, Show)
@@ -156,6 +158,7 @@ instance FromJSON Comment where
     v <- o .: "data"
     id' <- CommentID <$> v .: "id"
     url <- (redditURL <>) <$> v .: "permalink"
+    score <- v .: "score"
     author <- v .: "author"
     author_id <- v .: "author_fullname"
     body <- v .: "body"
@@ -163,6 +166,7 @@ instance FromJSON Comment where
     subreddit_id <- v .: "subreddit_id"
     post_id <- v .: "link_id"
     parent_id <- (Left <$> v .: "parent_id") <|> (Right <$> v .: "parent_id")
+    is_submitter <- v .: "is_submitter"
     created <- posixSecondsToUTCTime <$> v .: "created_utc"
     pure $ Comment {..}
 
@@ -187,12 +191,17 @@ instance FromJSON CommentListing where
 -- | A single post
 data Post = Post
   { id' :: ID Post,
-    url :: Text,
-    author :: Text,
+    url :: Text, -- | Permalink.
+    score :: Int,
+    author :: Text,  -- | Username of the author.
+    author_id :: ID Account,
     title :: Text,
-    body :: Text,   -- | Empty if not a selftext post. TODO: sort out link posts
+    body :: Text,   -- | Empty string if not a text post
+    content_url :: Text,  -- | For a link post, this is the link. For a text post, this is the same as @url@
+    flairtext :: Maybe Text,  -- | None if not flaired.
     subreddit :: Text,
-    subreddit_id :: ID Subreddit
+    subreddit_id :: ID Subreddit,
+    created :: UTCTime
   }
   deriving (Eq, Ord, Show)
 
@@ -201,11 +210,16 @@ instance FromJSON Post where
     v <- o .: "data"
     id' <- PostID <$> v .: "id"
     url <- (redditURL <>) <$> v .: "permalink"
+    score <- v .: "score"
     author <- v .: "author"
+    author_id <- v .: "author_fullname"
     title <- v .: "title"
     body <- v .: "selftext"
+    content_url <- v .: "url"
+    flairtext <- v .: "link_flair_text"
     subreddit <- v .: "subreddit"
     subreddit_id <- v .: "subreddit_id"
+    created <- posixSecondsToUTCTime <$> v .: "created_utc"
     pure $ Post {..}
 
 -- | Post listings
