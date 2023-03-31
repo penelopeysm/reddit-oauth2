@@ -4,9 +4,19 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE FlexibleInstances #-}
 
--- | Note that these types are not complete, in that we discard many fields of
--- the JSON response that Reddit gives. Making these fields exhaustive is the
--- subject of future work.
+{-|
+Module      : Reddit.Types
+Description : Underlying types for the things returned by Reddit
+Copyright   : (c) Penelope Y. 2023
+License     : MIT
+Maintainer  : penelopeysm@gmail.com
+Stability   : experimental
+
+Note that these types are not complete, in that we discard many fields of
+the JSON response that Reddit gives. If there is a particular piece of
+information you need, please feel free to make an issue or PR.
+-}
+
 module Reddit.Types
   ( ID (..),
     Comment (..),
@@ -23,19 +33,20 @@ import Data.Aeson
 import Data.Aeson.Types (Parser (..))
 import Data.Text (Text)
 import qualified Data.Text as T
+import Data.Time.Clock
+import Data.Time.Clock.POSIX (posixSecondsToUTCTime)
 
 redditURL :: Text
 redditURL = "https://reddit.com"
 
--- | Reddit \'things\' have an ID, which is a string prefixed by "t1_", "t2_", ...
--- Here, we parse them to remove the prefix.
--- data ID = CommentID Text
---         | AccountID Text
---         | PostID Text
---         | MessageID Text
---         | SubredditID Text
---         | AwardID Text
---   deriving (Eq, Ord, Show)
+-- | Reddit \'things\' have an ID, which is a string prefixed by "t1_", "t2_",
+-- "t3_"... depending on what type of object it is. Here, we parse them to
+-- remove the prefix. The information is instead stored in the type of the
+-- value.
+--
+-- By the way, this is my first time dabbling with GADTs in a library, so I'm
+-- not completely sure if it's the correct (or the smartest) way to do it.
+-- Please get in touch if you want to tell me about alternatives etc.
 data ID a where
   CommentID :: Text -> ID Comment      -- t1_
   AccountID :: Text -> ID Account      -- t2_
@@ -47,34 +58,40 @@ deriving instance Show a => Show (ID a)
 deriving instance Eq a => Eq (ID a)
 deriving instance Ord a => Ord (ID a)
 
+-- | Things which have an ID.
 class HasID a where
+  -- | Construct the full name of a thing from the thing itself.
   mkFullName :: a -> Text
+  -- | Construct the full name of a thing from its ID. This is possible because
+  -- the ID itself carries information about its type, allowing us to figure out
+  -- the correct prefix.
   mkFullNameFromID :: ID a -> Text
 
 instance HasID Comment where
-  mkFullNameFromID (CommentID c_id) = "t1_" <> c_id
   mkFullName cmt = mkFullNameFromID cmt.id'
+  mkFullNameFromID (CommentID c_id) = "t1_" <> c_id
 
 instance HasID Account where
-  mkFullNameFromID (AccountID a_id) = "t2_" <> a_id
   mkFullName acc = mkFullNameFromID acc.id'
+  mkFullNameFromID (AccountID a_id) = "t2_" <> a_id
 
 instance HasID Post where
-  mkFullNameFromID (PostID p_id) = "t3_" <> p_id
   mkFullName pst = mkFullNameFromID pst.id'
+  mkFullNameFromID (PostID p_id) = "t3_" <> p_id
 
 instance HasID Message where
-  mkFullNameFromID (MessageID m_id) = "t4_" <> m_id
   mkFullName msg = mkFullNameFromID msg.id'
+  mkFullNameFromID (MessageID m_id) = "t4_" <> m_id
 
 instance HasID Subreddit where
-  mkFullNameFromID (SubredditID s_id) = "t5_" <> s_id
   mkFullName srd = mkFullNameFromID srd.id'
+  mkFullNameFromID (SubredditID s_id) = "t5_" <> s_id
 
 instance HasID Award where
-  mkFullNameFromID (AwardID a_id) = "t6_" <> a_id
   mkFullName awd = mkFullNameFromID awd.id'
+  mkFullNameFromID (AwardID a_id) = "t6_" <> a_id
 
+-- | Things that can be commented on (i.e. comments and posts).
 class HasID a => CanCommentOn a where
 
 instance CanCommentOn Comment
@@ -117,16 +134,20 @@ instance FromJSON (ID Award) where
       ("t6_", rest) -> pure (AwardID rest)
       _ -> fail . T.unpack $ ("Failed to parse ID " <> t)
 
+-- Comment
+
 -- | A single comment.
 data Comment = Comment
   { id' :: ID Comment,
-    url :: Text,
-    author :: Text,
-    body :: Text,
-    subreddit :: Text,
+    url :: Text, -- | Permalink
+    author :: Text,  -- | Username of author
+    author_id :: ID Account,
+    body :: Text,  -- | Body text
+    subreddit :: Text,   -- | Name of the subreddit it was posted on
     subreddit_id :: ID Subreddit,
     post_id :: ID Post,
-    parent_id :: Either (ID Comment) (ID Post)  -- | If the comment is a top-level post, this is the same as @post_id@; otherwise it's the ID of the parent comment.
+    parent_id :: Either (ID Comment) (ID Post),  -- | If the comment is a top-level post, this is the same as @post_id@; otherwise it's the ID of the parent comment.
+    created :: UTCTime
   }
   deriving (Eq, Ord, Show)
 
@@ -136,12 +157,32 @@ instance FromJSON Comment where
     id' <- CommentID <$> v .: "id"
     url <- (redditURL <>) <$> v .: "permalink"
     author <- v .: "author"
+    author_id <- v .: "author_fullname"
     body <- v .: "body"
     subreddit <- v .: "subreddit"
     subreddit_id <- v .: "subreddit_id"
     post_id <- v .: "link_id"
     parent_id <- (Left <$> v .: "parent_id") <|> (Right <$> v .: "parent_id")
+    created <- posixSecondsToUTCTime <$> v .: "created_utc"
     pure $ Comment {..}
+
+-- | Comment listings
+data CommentListing = CommentListing
+  { after :: Maybe Text, -- | may be @None@ if there is nothing to come after it
+    size :: Int,
+    comments :: [Comment]
+  }
+  deriving (Show)
+
+instance FromJSON CommentListing where
+  parseJSON = withObject "CommentListing" $ \o -> do
+    v <- o .: "data"
+    after <- v .: "after"
+    size <- v .: "dist"
+    comments <- v .: "children" >>= parseJSONList
+    pure $ CommentListing {..}
+
+-- Post
 
 -- | A single post
 data Post = Post
@@ -167,22 +208,6 @@ instance FromJSON Post where
     subreddit_id <- v .: "subreddit_id"
     pure $ Post {..}
 
--- | Comment listings
-data CommentListing = CommentListing
-  { after :: Maybe Text, -- | may be @None@ if there is nothing to come after it
-    size :: Int,
-    comments :: [Comment]
-  }
-  deriving (Show)
-
-instance FromJSON CommentListing where
-  parseJSON = withObject "CommentListing" $ \o -> do
-    v <- o .: "data"
-    after <- v .: "after"
-    size <- v .: "dist"
-    comments <- v .: "children" >>= parseJSONList
-    pure $ CommentListing {..}
-
 -- | Post listings
 data PostListing = PostListing
   { after :: Maybe Text, -- | may be @None@ if there is nothing to come after it
@@ -199,13 +224,20 @@ instance FromJSON PostListing where
     posts <- v .: "children" >>= parseJSONList
     pure $ PostListing {..}
 
+-- Subreddit
+
 data Subreddit = Subreddit
                { id' :: ID Subreddit }
                deriving (Eq, Ord, Show)
 
+-- Account
+
 data Account = Account
-           { id' :: ID Account }
+           { id' :: ID Account
+           , created :: UTCTime }
            deriving (Eq, Ord, Show)
+
+-- Award
 
 data Award = Award
            { id' :: ID Award }

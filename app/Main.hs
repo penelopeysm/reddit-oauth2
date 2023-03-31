@@ -28,23 +28,18 @@ main = do
 
   env <- withCredentials creds userAgent
 
-  let replyToGreatHaskell :: Int -> Comment -> RedditT Int
-      replyToGreatHaskell count cmt = do
+  let showC :: Int -> Comment -> RedditT Int
+      showC count cmt = do
         let p = liftIO . T.putStrLn
         p ""
         p "Found new comment!"
         p $ "By    : /u/" <> cmt.author
         p $ "Link  : " <> cmt.url
         p $ "Text  : " <> cmt.body
-        p $ T.pack ("Comments seen so far: " <> show (count + 1))
-
-        -- Don't want to actually spam the sub.
-
-        -- let triggerText = "Haskell is great!"
-        -- let replyText = "Indeed, it is!"
-        -- when (triggerText `T.isInfixOf` cmt.body && cmt.author /= username)
-        --  (p "Replying to it..." >> addNewComment cmt.id' replyText)
+        p $ "Posted at  : " <> T.pack (show cmt.created)
         pure (count + 1)
 
   runRedditT' env $ do
-    stream True replyToGreatHaskell 0 (subredditComments "pokemontrades")
+    p <- getComment (CommentID "jeccwt1")
+    liftIO $ print p
+    -- stream True showC 0 (subredditComments "AskReddit")

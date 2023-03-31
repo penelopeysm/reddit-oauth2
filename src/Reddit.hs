@@ -1,39 +1,38 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs #-}
 
-{-|
-Module      : Reddit
-Description : Functions to interact with the Reddit OAuth2 API
-Copyright   : (c) Penelope Y. 2023
-License     : MIT
-Maintainer  : penelopeysm@gmail.com
-Stability   : experimental
-
-@reddit-oauth2@ provides a collection of functions to query the Reddit OAuth2 API.
-
-It is currently very primitive, but contains enough stuff to let you make a bot
-that replies to certain phrases found in comments / posts (which is a very
-common use case).
-
-It is probably easiest to demonstrate this with an example. One such example is
-provided in @src/Reddit/Example.hs@. When run, this script will log each new
-comment posted in \/r\/haskell to standard output, scans it for the phrase
-@"Haskell is great!!!!!!!!!"@, and if that is found, replies to them with
-@"Indeed, it is!"@.
-
-(Even though I don't think many people post that /exact/
-phrase on \/r\/haskell, I put in 9 exclamation marks because I don't want to be
-morally responsible for somebody gratuitously importing it.)
--}
-
+-- |
+-- Module      : Reddit
+-- Description : Functions to interact with the Reddit OAuth2 API
+-- Copyright   : (c) Penelope Y. 2023
+-- License     : MIT
+-- Maintainer  : penelopeysm@gmail.com
+-- Stability   : experimental
+--
+-- @reddit-oauth2@ provides a collection of functions to query the Reddit OAuth2 API.
+--
+-- It is currently very primitive, but contains enough stuff to let you make a bot
+-- that replies to certain phrases found in comments / posts (which is a very
+-- common use case).
+--
+-- It is probably easiest to demonstrate this with an example. One such example is
+-- provided in @src/Reddit/Example.hs@. When run, this script will log each new
+-- comment posted in \/r\/haskell to standard output, scans it for the phrase
+-- @"Haskell is great!!!!!!!!!"@, and if that is found, replies to them with
+-- @"Indeed, it is!"@.
+--
+-- (Even though I don't think many people post that /exact/
+-- phrase on \/r\/haskell, I put in 9 exclamation marks because I don't want to be
+-- morally responsible for somebody gratuitously importing it.)
 module Reddit
   ( -- * Types
     RedditEnv,
     RedditT (..),
     runRedditT,
     runRedditT',
-    -- * Authentication with account credentials
+    Reddit.Types.ID (..),
 
+    -- * Authentication with account credentials
     -- $credentials
     Credentials (..),
     withCredentials,
@@ -44,22 +43,26 @@ module Reddit
     -- $users
     user,
 
+    -- * Comments
+
+    --
+    -- $comments
+    Reddit.Types.Comment (..),
+    getComments,
+    getComment,
+    addNewComment,
+    subredditComments,
+
     -- * Posts
 
     --
     -- $posts
     Reddit.Types.Post (..),
     Timeframe (..),
+    getPosts,
+    getPost,
     SubredditSort (..),
     subredditPosts,
-
-    -- * Comments
-
-    --
-    -- $comments
-    Reddit.Types.Comment (..),
-    addNewComment,
-    subredditComments,
 
     -- * Streams
 
@@ -68,7 +71,7 @@ module Reddit
     stream,
     stream',
     postStream,
-    commentStream
+    commentStream,
   )
 where
 
@@ -146,9 +149,11 @@ data Credentials = Credentials
 
 -- | Exchange user account credentials for a RedditEnv, which is required to run
 -- all Reddit queries.
-withCredentials :: Credentials
-                -> Text  -- ^ Your user-agent. Reddit says you should use a unique and identifiable user-agent.
-                -> IO RedditEnv
+withCredentials ::
+  Credentials ->
+  -- | Your user-agent. Reddit says you should use a unique and identifiable user-agent.
+  Text ->
+  IO RedditEnv
 withCredentials creds userAgent = do
   (tokenInternal :: Auth.TokenInternal) <- runReq defaultHttpConfig $ do
     let uri = https "www.reddit.com" /: "api" /: "v1" /: "access_token"
@@ -157,9 +162,9 @@ withCredentials creds userAgent = do
             ( "grant_type"
                 =: ("password" :: Text)
                 <> "username"
-                =: username creds
+                  =: username creds
                 <> "password"
-                =: password creds
+                  =: password creds
             )
     let options = basicAuth (TE.encodeUtf8 (clientID creds)) (TE.encodeUtf8 (clientSecret creds))
     response <- req POST uri body lbsResponse options
@@ -215,10 +220,34 @@ user username = do
 -- $comments
 -- Blah.
 
+-- | Fetch a list of comments by their IDs.
+getComments :: [ID Comment] -> RedditT [Comment]
+getComments c_ids = do
+  env <- ask
+  let fullNames = T.intercalate "," (map mkFullNameFromID c_ids)
+  respBody <- liftIO $ runReq defaultHttpConfig $ do
+    let uri = https oauth /: "api" /: "info"
+    let params = withUAToken env <> "id" =: fullNames
+    response <- req GET uri NoReqBody lbsResponse params
+    pure (responseBody response)
+  cmts <- comments <$> throwDecode respBody
+  when
+    (length cmts /= length c_ids)
+    (fail $ "Reddit response had incorrect length: expected " <> show (length c_ids) <> ", found " <> show (length cmts))
+  pure cmts
+
+-- | Fetch a single comment by its ID.
+getComment :: ID Comment -> RedditT Comment
+getComment c_id = do
+  cmt <- getComments [c_id]
+  case cmt of
+    [c] -> pure c
+    _ -> fail "Reddit response had incorrect length"
+
 -- | Add a new comment as a reply to an existing post or comment.
 addNewComment ::
-  -- | This constraint ensures that you can only reply to comments and posts.
-  CanCommentOn a =>
+  -- \| This constraint ensures that you can only reply to comments and posts.
+  (CanCommentOn a) =>
   -- | The ID of the thing being replied to.
   ID a ->
   -- | The contents of the comment (in Markdown)
@@ -233,6 +262,18 @@ addNewComment x body = do
     let body_params = "thing_id" =: fullName <> "text" =: body
     void $ req POST uri (ReqBodyUrlEnc body_params) ignoreResponse req_params
 
+-- | Get the most recent 25 comments on a subreddit. This endpoint is
+-- undocumented!
+subredditComments :: Text -> RedditT [Comment]
+subredditComments sr = do
+  env <- ask
+  checkTokenValidity
+  respBody <- liftIO $ runReq defaultHttpConfig $ do
+    let uri = https oauth /: "r" /: sr /: "comments"
+    response <- req GET uri NoReqBody lbsResponse (withUAToken env)
+    pure (responseBody response)
+  comments <$> throwDecode respBody
+
 -- $posts
 --
 -- Fetch the first 25 posts from a given subreddit ordered by the
@@ -241,6 +282,30 @@ addNewComment x body = do
 data Timeframe = Hour | Day | Week | Month | Year | All
 
 data SubredditSort = Hot | New | Random | Rising | Top Timeframe | Controversial Timeframe
+
+-- | Fetch a list of posts by their IDs.
+getPosts :: [ID Post] -> RedditT [Post]
+getPosts p_ids = do
+  env <- ask
+  let fullNames = T.intercalate "," (map mkFullNameFromID p_ids)
+  respBody <- liftIO $ runReq defaultHttpConfig $ do
+    let uri = https oauth /: "api" /: "info"
+    let params = withUAToken env <> "id" =: fullNames
+    response <- req GET uri NoReqBody lbsResponse params
+    pure (responseBody response)
+  psts <- posts <$> throwDecode respBody
+  when
+    (length psts /= length p_ids)
+    (fail $ "Reddit response had incorrect length: expected " <> show (length p_ids) <> ", found " <> show (length psts))
+  pure psts
+
+-- | Fetch a single post by its ID.
+getPost :: ID Post -> RedditT Post
+getPost p_id = do
+  pst <- getPosts [p_id]
+  case pst of
+    [p] -> pure p
+    _ -> fail "Reddit response had incorrect length"
 
 -- | Get the first 25 posts on a subreddit
 subredditPosts :: Text -> SubredditSort -> RedditT [Post]
@@ -267,18 +332,6 @@ subredditPosts sr sort = do
     pure (responseBody response)
   posts <$> throwDecode respBody
 
--- | Get the most recent 25 comments on a subreddit. This endpoint is
--- undocumented!
-subredditComments :: Text -> RedditT [Comment]
-subredditComments sr = do
-  env <- ask
-  checkTokenValidity
-  respBody <- liftIO $ runReq defaultHttpConfig $ do
-    let uri = https oauth /: "r" /: sr /: "comments"
-    response <- req GET uri NoReqBody lbsResponse (withUAToken env)
-    pure (responseBody response)
-  comments <$> throwDecode respBody
-
 -- $streams
 --
 -- @Stream@s are a popular feature in the Python PRAW library. They are
@@ -291,7 +344,7 @@ subredditComments sr = do
 -- save a tiny bit of typing.
 
 -- Helper function.
-streamInner :: Eq a => [a] -> (t -> a -> RedditT t) -> t -> RedditT [a] -> RedditT ()
+streamInner :: (Eq a) => [a] -> (t -> a -> RedditT t) -> t -> RedditT [a] -> RedditT ()
 streamInner seen cb cbInit src = do
   liftIO $ threadDelay 5000000
   items <- src
@@ -311,7 +364,7 @@ streamInner seen cb cbInit src = do
 -- have been seen so far, or perform actions conditionally based on what the
 -- stream has previously thrown up.
 stream ::
-  Eq a =>
+  (Eq a) =>
   -- | Whether to ignore the things found in the first request. Since the first
   -- request is run when the stream is started, this essentially amounts to
   -- ignoring everything posted /before/ the stream is started. You will most
@@ -332,7 +385,7 @@ stream ignoreExisting cb cbInit src = do
 -- | @stream'@ is a simpler version of @stream@, which accepts a callback that
 -- doesn't use state.
 stream' ::
-  Eq a =>
+  (Eq a) =>
   -- | Whether to ignore the first request.
   Bool ->
   -- | A callback function to execute on all things found.
