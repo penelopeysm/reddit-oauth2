@@ -1,22 +1,20 @@
 {-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
-{-|
-Module      : Reddit.Types
-Description : Underlying types for the things returned by Reddit
-Copyright   : (c) Penelope Y. 2023
-License     : MIT
-Maintainer  : penelopeysm@gmail.com
-Stability   : experimental
-
-Note that these types are not complete, in that we discard many fields of
-the JSON response that Reddit gives. If there is a particular piece of
-information you need, please feel free to make an issue or PR.
--}
-
+-- |
+-- Module      : Reddit.Types
+-- Description : Underlying types for the things returned by Reddit
+-- Copyright   : (c) Penelope Y. 2023
+-- License     : MIT
+-- Maintainer  : penelopeysm@gmail.com
+-- Stability   : experimental
+--
+-- Note that these types are not complete, in that we discard many fields of
+-- the JSON response that Reddit gives. If there is a particular piece of
+-- information you need, please feel free to make an issue or PR.
 module Reddit.Types
   ( ID (..),
     Comment (..),
@@ -39,29 +37,39 @@ import Data.Time.Clock.POSIX (posixSecondsToUTCTime)
 redditURL :: Text
 redditURL = "https://reddit.com"
 
--- | Reddit \'things\' have an ID, which is a string prefixed by "t1_", "t2_",
--- "t3_"... depending on what type of object it is. Here, we parse them to
--- remove the prefix. The information is instead stored in the type of the
--- value.
+-- | Reddit \'things\' have an ID, which (in the raw JSON) is a string prefixed
+-- by "t1_", "t2_", "t3_"... depending on what type of object it is. In this
+-- library, IDs are stored __without__ this prefix; so @CommentID "abcde"@ is
+-- equivalent to Reddit's @"t1_abcde"@.
 --
 -- By the way, this is my first time dabbling with GADTs in a library, so I'm
 -- not completely sure if it's the correct (or the smartest) way to do it.
 -- Please get in touch if you want to tell me about alternatives etc.
 data ID a where
-  CommentID :: Text -> ID Comment      -- t1_
-  AccountID :: Text -> ID Account      -- t2_
-  PostID :: Text -> ID Post            -- t3_
-  MessageID :: Text -> ID Message      -- t4_
-  SubredditID :: Text -> ID Subreddit  -- t5_
-  AwardID :: Text -> ID Award          -- t6_
-deriving instance Show a => Show (ID a)
-deriving instance Eq a => Eq (ID a)
-deriving instance Ord a => Ord (ID a)
+  -- | t1_
+  CommentID :: Text -> ID Comment
+  -- | t2_
+  AccountID :: Text -> ID Account
+  -- | t3_
+  PostID :: Text -> ID Post
+  -- | t4_
+  MessageID :: Text -> ID Message
+  -- | t5_
+  SubredditID :: Text -> ID Subreddit
+  -- | t6_
+  AwardID :: Text -> ID Award
+
+deriving instance (Show a) => Show (ID a)
+
+deriving instance (Eq a) => Eq (ID a)
+
+deriving instance (Ord a) => Ord (ID a)
 
 -- | Things which have an ID.
 class HasID a where
   -- | Construct the full name of a thing from the thing itself.
   mkFullName :: a -> Text
+
   -- | Construct the full name of a thing from its ID. This is possible because
   -- the ID itself carries information about its type, allowing us to figure out
   -- the correct prefix.
@@ -92,7 +100,7 @@ instance HasID Award where
   mkFullNameFromID (AwardID a_id) = "t6_" <> a_id
 
 -- | Things that can be commented on (i.e. comments and posts).
-class HasID a => CanCommentOn a where
+class (HasID a) => CanCommentOn a
 
 instance CanCommentOn Comment
 
@@ -139,16 +147,22 @@ instance FromJSON (ID Award) where
 -- | A single comment.
 data Comment = Comment
   { id' :: ID Comment,
-    url :: Text, -- | Permalink
+    -- | Permalink
+    url :: Text,
     score :: Int,
-    author :: Text,  -- | Username of author
+    -- | Username of author
+    author :: Text,
     author_id :: ID Account,
-    body :: Text,  -- | Body text
-    subreddit :: Text,   -- | Name of the subreddit it was posted on
+    -- | Body text
+    body :: Text,
+    -- | Name of the subreddit it was posted on
+    subreddit :: Text,
     subreddit_id :: ID Subreddit,
     post_id :: ID Post,
-    is_submitter :: Bool, -- | Whether the commenter also made the post
-    parent_id :: Either (ID Comment) (ID Post),  -- | If the comment is a top-level comment, this is the same as @post_id@; otherwise it's the ID of the parent comment.
+    -- | Whether the commenter also made the post
+    is_submitter :: Bool,
+    -- | If the comment is a top-level comment, this is the same as @post_id@; otherwise it's the ID of the parent comment.
+    parent_id :: Either (ID Comment) (ID Post),
     created :: UTCTime
   }
   deriving (Eq, Ord, Show)
@@ -172,7 +186,8 @@ instance FromJSON Comment where
 
 -- | Comment listings
 data CommentListing = CommentListing
-  { after :: Maybe Text, -- | may be @None@ if there is nothing to come after it
+  { -- | may be @None@ if there is nothing to come after it
+    after :: Maybe Text,
     size :: Int,
     comments :: [Comment]
   }
@@ -191,14 +206,19 @@ instance FromJSON CommentListing where
 -- | A single post
 data Post = Post
   { id' :: ID Post,
-    url :: Text, -- | Permalink.
+    -- | Permalink.
+    url :: Text,
     score :: Int,
-    author :: Text,  -- | Username of the author.
+    -- | Username of the author.
+    author :: Text,
     author_id :: ID Account,
     title :: Text,
-    body :: Text,   -- | Empty string if not a text post
-    content_url :: Text,  -- | For a link post, this is the link. For a text post, this is the same as @url@
-    flairtext :: Maybe Text,  -- | None if not flaired.
+    -- | Empty string if not a text post
+    body :: Text,
+    -- | For a link post, this is the link. For a text post, this is the same as @url@
+    content_url :: Text,
+    -- | None if not flaired.
+    flairtext :: Maybe Text,
     subreddit :: Text,
     subreddit_id :: ID Subreddit,
     created :: UTCTime
@@ -224,7 +244,8 @@ instance FromJSON Post where
 
 -- | Post listings
 data PostListing = PostListing
-  { after :: Maybe Text, -- | may be @None@ if there is nothing to come after it
+  { -- | may be @None@ if there is nothing to come after it
+    after :: Maybe Text,
     size :: Int,
     posts :: [Post]
   }
@@ -241,22 +262,23 @@ instance FromJSON PostListing where
 -- Subreddit
 
 data Subreddit = Subreddit
-               { id' :: ID Subreddit }
-               deriving (Eq, Ord, Show)
+  {id' :: ID Subreddit}
+  deriving (Eq, Ord, Show)
 
 -- Account
 
 data Account = Account
-           { id' :: ID Account
-           , created :: UTCTime }
-           deriving (Eq, Ord, Show)
+  { id' :: ID Account,
+    created :: UTCTime
+  }
+  deriving (Eq, Ord, Show)
 
 -- Award
 
 data Award = Award
-           { id' :: ID Award }
-           deriving (Eq, Ord, Show)
+  {id' :: ID Award}
+  deriving (Eq, Ord, Show)
 
 data Message = Message
-           { id' :: ID Message }
-           deriving (Eq, Ord, Show)
+  {id' :: ID Message}
+  deriving (Eq, Ord, Show)

@@ -2,6 +2,22 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
+-- |
+-- Module      : Reddit.Example
+-- Description : An example of a simple Reddit bot built using this library
+-- Copyright   : (c) Penelope Y. 2023
+-- License     : MIT
+-- Maintainer  : penelopeysm@gmail.com
+-- Stability   : experimental
+--
+-- When run, this script will log each new comment posted in \/r\/haskell to
+-- standard output, scans it for the phrase @"Haskell is great!!!!!!!!!"@, and
+-- if that is found, replies to them with @"Indeed, it is!"@. (I put in 9
+-- exclamation marks because I don't want to be morally responsible for somebody
+-- gratuitously importing and running it.)
+--
+-- Anyway, you should look at the source code for this module instead of the
+-- built Haddocks. It contains many explanatory comments.
 module Reddit.Example where
 
 import Control.Concurrent (threadDelay)

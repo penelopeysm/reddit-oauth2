@@ -11,19 +11,15 @@
 --
 -- @reddit-oauth2@ provides a collection of functions to query the Reddit OAuth2 API.
 --
--- It is currently very primitive, but contains enough stuff to let you make a bot
--- that replies to certain phrases found in comments / posts (which is a very
--- common use case).
+-- It is currently very primitive, but contains enough stuff to let you make a
+-- bot that replies to certain phrases found in comments / posts (which is a
+-- very common use case). If you are interested in this specific use case, the
+-- fastest way to get up to scratch is probably to see the example in the
+-- "Reddit.Example" module.
 --
--- It is probably easiest to demonstrate this with an example. One such example is
--- provided in @src/Reddit/Example.hs@. When run, this script will log each new
--- comment posted in \/r\/haskell to standard output, scans it for the phrase
--- @"Haskell is great!!!!!!!!!"@, and if that is found, replies to them with
--- @"Indeed, it is!"@.
---
--- (Even though I don't think many people post that /exact/
--- phrase on \/r\/haskell, I put in 9 exclamation marks because I don't want to be
--- morally responsible for somebody gratuitously importing it.)
+-- Otherwise, the remainder of this page should be fairly well-documented and
+-- otherwise self-explanatory. Please feel free to raise an issue if there are
+-- any unclear aspects.
 module Reddit
   ( -- * Types
     RedditEnv,
@@ -31,6 +27,7 @@ module Reddit
     runRedditT,
     runRedditT',
     Reddit.Types.ID (..),
+    -- | #credentials#
 
     -- * Authentication with account credentials
     -- $credentials
@@ -107,7 +104,7 @@ data RedditEnv = RedditEnv
 type RedditT = ReaderT RedditEnv IO
 
 -- | Run a Reddit computation using an @env@ value obtained through
--- authorisation (see "Reddit.Auth").
+-- authorisation (see [Authentication](#credentials)).
 runRedditT :: RedditT a -> RedditEnv -> IO a
 runRedditT = runReaderT
 
@@ -221,7 +218,7 @@ user username = do
 -- Blah.
 
 -- | Fetch a list of comments by their IDs.
--- 
+--
 -- TODO: This uses the /api/info endpoint, which (apparently) provides slightly
 -- less information than /comments/<article>. For example, this endpoint doesn't
 -- provide a list of replies. This is probably worth investigating.
