@@ -1,7 +1,4 @@
 {-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE StandaloneDeriving #-}
 
 -- |
@@ -17,12 +14,13 @@
 -- information you need, please feel free to make an issue or PR.
 module Reddit.Types
   ( ID (..),
+    Listing (contents),
     Comment (..),
-    CommentListing (comments),
     Post (..),
-    PostListing (posts),
+    Subreddit (..),
     CanCommentOn (..),
     HasID (..),
+    EditedUTCTime (..),
   )
 where
 
@@ -142,28 +140,66 @@ instance FromJSON (ID Award) where
       ("t6_", rest) -> pure (AwardID rest)
       _ -> fail . T.unpack $ ("Failed to parse ID " <> t)
 
+-- Listings
+
+-- | @Listing@s are Reddit's way of paginating results. Reddit actually supports
+-- heterogeneous listings (which can contain, say, comments, posts, and other
+-- things), and this would probably improve performance for some applications,
+-- but this isn't really something I'm keen on implementing right now.
+data Listing t = Listing
+  { -- | May be @None@ if there is nothing to come after it.
+    after :: Maybe Text,
+    -- | The number of things contained in the listing.
+    size :: Int,
+    -- | The things inside it.
+    contents :: [t]
+  }
+
+instance (FromJSON t) => FromJSON (Listing t) where
+  parseJSON = withObject "Listing" $ \o -> do
+    v <- o .: "data"
+    after <- v .: "after"
+    size <- v .: "dist"
+    contents <- v .: "children" >>= parseJSONList
+    pure $ Listing {..}
+
+-- Convenience functions to deal with some weird responses from Reddit's API
+
+data EditedUTCTime
+  = NeverEdited
+  | EditedButTimeUnknown
+  | EditedAt UTCTime
+  deriving (Eq, Ord, Show)
+
+-- | Convert Reddit's \'edited\' field (which is either a bool or a number...!)
+-- to our "EditedUTCTime" type.
+convertEditedTime :: Value -> EditedUTCTime
+convertEditedTime (Bool b) = if b then EditedButTimeUnknown else NeverEdited
+convertEditedTime (Number n) = EditedAt (posixSecondsToUTCTime . realToFrac $ n)
+
 -- Comment
 
 -- | A single comment.
 data Comment = Comment
   { id' :: ID Comment,
-    -- | Permalink
+    -- | Permalink.
     url :: Text,
     score :: Int,
-    -- | Username of author
+    -- | Username of the author (without the @\/u\/@ prefix).
     author :: Text,
     author_id :: ID Account,
-    -- | Body text
+    -- | Body text in Markdown.
     body :: Text,
-    -- | Name of the subreddit it was posted on
+    -- | Name of the subreddit it was posted on (without the @\/r\/@ prefix).
     subreddit :: Text,
     subreddit_id :: ID Subreddit,
     post_id :: ID Post,
-    -- | Whether the commenter also made the post
+    -- | Whether the commenter also made the post.
     is_submitter :: Bool,
     -- | If the comment is a top-level comment, this is the same as @post_id@; otherwise it's the ID of the parent comment.
     parent_id :: Either (ID Comment) (ID Post),
-    created :: UTCTime
+    createdTime :: UTCTime,
+    editedTime :: EditedUTCTime
   }
   deriving (Eq, Ord, Show)
 
@@ -181,25 +217,9 @@ instance FromJSON Comment where
     post_id <- v .: "link_id"
     parent_id <- (Left <$> v .: "parent_id") <|> (Right <$> v .: "parent_id")
     is_submitter <- v .: "is_submitter"
-    created <- posixSecondsToUTCTime <$> v .: "created_utc"
+    createdTime <- posixSecondsToUTCTime <$> v .: "created_utc"
+    editedTime <- convertEditedTime <$> v .: "edited"
     pure $ Comment {..}
-
--- | Comment listings
-data CommentListing = CommentListing
-  { -- | may be @None@ if there is nothing to come after it
-    after :: Maybe Text,
-    size :: Int,
-    comments :: [Comment]
-  }
-  deriving (Show)
-
-instance FromJSON CommentListing where
-  parseJSON = withObject "CommentListing" $ \o -> do
-    v <- o .: "data"
-    after <- v .: "after"
-    size <- v .: "dist"
-    comments <- v .: "children" >>= parseJSONList
-    pure $ CommentListing {..}
 
 -- Post
 
@@ -209,19 +229,21 @@ data Post = Post
     -- | Permalink.
     url :: Text,
     score :: Int,
-    -- | Username of the author.
+    -- | Username of the author (without the @\/u\/@ prefix).
     author :: Text,
     author_id :: ID Account,
     title :: Text,
-    -- | Empty string if not a text post
+    -- | Empty string if not a text post.
     body :: Text,
-    -- | For a link post, this is the link. For a text post, this is the same as @url@
+    -- | For a link post, this is the link. For a text post, this is the same as @url@.
     content_url :: Text,
     -- | None if not flaired.
     flairtext :: Maybe Text,
+    -- | Name of the subreddit (without the @\/r\/@ prefix)
     subreddit :: Text,
     subreddit_id :: ID Subreddit,
-    created :: UTCTime
+    createdTime :: UTCTime,
+    editedTime :: EditedUTCTime
   }
   deriving (Eq, Ord, Show)
 
@@ -239,31 +261,37 @@ instance FromJSON Post where
     flairtext <- v .: "link_flair_text"
     subreddit <- v .: "subreddit"
     subreddit_id <- v .: "subreddit_id"
-    created <- posixSecondsToUTCTime <$> v .: "created_utc"
+    createdTime <- posixSecondsToUTCTime <$> v .: "created_utc"
+    editedTime <- convertEditedTime <$> v .: "edited"
     pure $ Post {..}
-
--- | Post listings
-data PostListing = PostListing
-  { -- | may be @None@ if there is nothing to come after it
-    after :: Maybe Text,
-    size :: Int,
-    posts :: [Post]
-  }
-  deriving (Show)
-
-instance FromJSON PostListing where
-  parseJSON = withObject "PostListing" $ \o -> do
-    v <- o .: "data"
-    after <- v .: "after"
-    size <- v .: "dist"
-    posts <- v .: "children" >>= parseJSONList
-    pure $ PostListing {..}
 
 -- Subreddit
 
 data Subreddit = Subreddit
-  {id' :: ID Subreddit}
+  { id' :: ID Subreddit,
+    -- | Subreddit name (without the @\/r\/@ prefix).
+    name :: Text,
+    -- | Human name (the string that appears at the top of the sub).
+    title :: Text,
+    -- | Sidebar text.
+    description :: Text,
+    -- | Number of subscribers.
+    subscribers :: Int,
+    -- | Created time.
+    created :: UTCTime
+  }
   deriving (Eq, Ord, Show)
+
+instance FromJSON Subreddit where
+  parseJSON = withObject "Subreddit" $ \o -> do
+    v <- o .: "data"
+    id' <- SubredditID <$> v .: "id"
+    name <- v .: "display_name"
+    description <- v .: "public_description"
+    title <- v .: "title"
+    subscribers <- v .: "subscribers"
+    created <- posixSecondsToUTCTime <$> v .: "created"
+    pure $ Subreddit {..}
 
 -- Account
 

@@ -33,7 +33,10 @@ library
     default-extensions:
       OverloadedStrings
       OverloadedRecordDot
+      RecordWildCards
       ScopedTypeVariables
+      GADTs
+      FlexibleInstances
 
     build-depends:
         base ^>=4.16.4.0 || ^>=4.17.0.0,

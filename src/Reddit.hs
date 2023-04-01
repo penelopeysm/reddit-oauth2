@@ -27,6 +27,9 @@ module Reddit
     runRedditT,
     runRedditT',
     Reddit.Types.ID (..),
+    Timeframe (..),
+    SubredditSort (..),
+    Reddit.Types.EditedUTCTime (..),
     -- | #credentials#
 
     -- * Authentication with account credentials
@@ -55,11 +58,19 @@ module Reddit
     --
     -- $posts
     Reddit.Types.Post (..),
-    Timeframe (..),
     getPosts,
     getPost,
-    SubredditSort (..),
     subredditPosts,
+
+    -- * Subreddits
+
+    --
+    -- $subreddits
+    Reddit.Types.Subreddit (..),
+    getSubreddits,
+    getSubreddit,
+    getSubredditsByName,
+    getSubredditByName,
 
     -- * Streams
 
@@ -199,6 +210,31 @@ checkTokenValidity = do
     (nominalDiffTimeToSeconds (diffUTCTime currentTime expiryTime) > 0)
     (liftIO (throwIO TokenExpiredException))
 
+-- $listings
+-- Listings are not exposed to the user. There is no real reason why 
+
+getListingContentsByIDs :: (HasID t, FromJSON t) => [ID t] -> RedditT [t]
+getListingContentsByIDs ids = do
+  env <- ask
+  let fullNames = T.intercalate "," (map mkFullNameFromID ids)
+  respBody <- liftIO $ runReq defaultHttpConfig $ do
+    let uri = https oauth /: "api" /: "info"
+    let params = withUAToken env <> "id" =: fullNames
+    response <- req GET uri NoReqBody lbsResponse params
+    pure (responseBody response)
+  ct <- contents <$> throwDecode respBody
+  when
+    (length ct /= length ids)
+    (fail $ "Reddit response had incorrect length: expected " <> show (length ids) <> ", found " <> show (length ct))
+  pure ct
+
+getSingleThingByID :: (HasID t, FromJSON t) => ID t -> RedditT t
+getSingleThingByID its_id = do
+  thing <- getListingContentsByIDs [its_id]
+  case thing of
+    [t] -> pure t
+    _ -> fail "Reddit response had incorrect length"
+
 -- $users
 --
 -- Fetch a user.
@@ -223,27 +259,11 @@ user username = do
 -- less information than /comments/<article>. For example, this endpoint doesn't
 -- provide a list of replies. This is probably worth investigating.
 getComments :: [ID Comment] -> RedditT [Comment]
-getComments c_ids = do
-  env <- ask
-  let fullNames = T.intercalate "," (map mkFullNameFromID c_ids)
-  respBody <- liftIO $ runReq defaultHttpConfig $ do
-    let uri = https oauth /: "api" /: "info"
-    let params = withUAToken env <> "id" =: fullNames
-    response <- req GET uri NoReqBody lbsResponse params
-    pure (responseBody response)
-  cmts <- comments <$> throwDecode respBody
-  when
-    (length cmts /= length c_ids)
-    (fail $ "Reddit response had incorrect length: expected " <> show (length c_ids) <> ", found " <> show (length cmts))
-  pure cmts
+getComments = getListingContentsByIDs
 
 -- | Fetch a single comment by its ID.
 getComment :: ID Comment -> RedditT Comment
-getComment c_id = do
-  cmt <- getComments [c_id]
-  case cmt of
-    [c] -> pure c
-    _ -> fail "Reddit response had incorrect length"
+getComment = getSingleThingByID
 
 -- | Add a new comment as a reply to an existing post or comment.
 addNewComment ::
@@ -273,7 +293,7 @@ subredditComments sr = do
     let uri = https oauth /: "r" /: sr /: "comments"
     response <- req GET uri NoReqBody lbsResponse (withUAToken env)
     pure (responseBody response)
-  comments <$> throwDecode respBody
+  contents <$> throwDecode respBody
 
 -- $posts
 --
@@ -286,27 +306,11 @@ data SubredditSort = Hot | New | Random | Rising | Top Timeframe | Controversial
 
 -- | Fetch a list of posts by their IDs.
 getPosts :: [ID Post] -> RedditT [Post]
-getPosts p_ids = do
-  env <- ask
-  let fullNames = T.intercalate "," (map mkFullNameFromID p_ids)
-  respBody <- liftIO $ runReq defaultHttpConfig $ do
-    let uri = https oauth /: "api" /: "info"
-    let params = withUAToken env <> "id" =: fullNames
-    response <- req GET uri NoReqBody lbsResponse params
-    pure (responseBody response)
-  psts <- posts <$> throwDecode respBody
-  when
-    (length psts /= length p_ids)
-    (fail $ "Reddit response had incorrect length: expected " <> show (length p_ids) <> ", found " <> show (length psts))
-  pure psts
+getPosts = getListingContentsByIDs
 
 -- | Fetch a single post by its ID.
 getPost :: ID Post -> RedditT Post
-getPost p_id = do
-  pst <- getPosts [p_id]
-  case pst of
-    [p] -> pure p
-    _ -> fail "Reddit response had incorrect length"
+getPost = getSingleThingByID
 
 -- | Get the first 25 posts on a subreddit
 subredditPosts :: Text -> SubredditSort -> RedditT [Post]
@@ -331,7 +335,43 @@ subredditPosts sr sort = do
     let uri = https oauth /: "r" /: sr /: endpoint
     response <- req GET uri NoReqBody lbsResponse (withUAToken env <> tf_params)
     pure (responseBody response)
-  posts <$> throwDecode respBody
+  contents <$> throwDecode respBody
+
+-- $subreddits
+--
+-- Subreddits.
+
+-- | Fetch a list of subreddits by their IDs.
+getSubreddits :: [ID Subreddit] -> RedditT [Subreddit]
+getSubreddits = getListingContentsByIDs
+
+-- | Fetch a single subreddit by its ID.
+getSubreddit :: ID Subreddit -> RedditT Subreddit
+getSubreddit = getSingleThingByID
+
+-- | Fetch a list of subreddits by their names.
+getSubredditsByName :: [Text] -> RedditT [Subreddit]
+getSubredditsByName s_names = do
+  env <- ask
+  let allNames = T.intercalate "," s_names
+  respBody <- liftIO $ runReq defaultHttpConfig $ do
+    let uri = https oauth /: "api" /: "info"
+    let params = withUAToken env <> "sr_name" =: allNames
+    response <- req GET uri NoReqBody lbsResponse params
+    pure (responseBody response)
+  psts <- contents <$> throwDecode respBody
+  when
+    (length psts /= length s_names)
+    (fail $ "Reddit response had incorrect length: expected " <> show (length s_names) <> ", found " <> show (length psts))
+  pure psts
+
+-- | Fetch a single subreddit by its ID.
+getSubredditByName :: Text -> RedditT Subreddit
+getSubredditByName s_name = do
+  srd <- getSubredditsByName [s_name]
+  case srd of
+    [s] -> pure s
+    _ -> fail "Reddit response had incorrect length"
 
 -- $streams
 --

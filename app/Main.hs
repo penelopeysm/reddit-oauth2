@@ -36,11 +36,11 @@ main = do
         p $ "By    : /u/" <> cmt.author
         p $ "Link  : " <> cmt.url
         p $ "Text  : " <> cmt.body
-        p $ "Posted at  : " <> T.pack (show cmt.created)
+        p $ "Posted at  : " <> T.pack (show cmt.createdTime)
         pure (count + 1)
 
   runRedditT' env $ do
     -- p <- getComment (CommentID "jecmmme")
-    p <- getPost (PostID "1259u8o")
+    p <- getSubredditByName "pokemontrades"
     liftIO $ print p
     -- stream True showC 0 (subredditComments "AskReddit")
