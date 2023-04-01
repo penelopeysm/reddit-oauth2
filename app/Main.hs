@@ -40,7 +40,5 @@ main = do
         pure (count + 1)
 
   runRedditT' env $ do
-    -- p <- getComment (CommentID "jecmmme")
-    p <- getSubredditByName "pokemontrades"
-    liftIO $ print p
-    -- stream True showC 0 (subredditComments "AskReddit")
+    ps <- accountComments "is_a_togekiss"
+    liftIO $ mapM_ (\p -> print p.createdTime >> print p.body) ps

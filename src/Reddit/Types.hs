@@ -16,6 +16,7 @@ module Reddit.Types
   ( ID (..),
     Listing (contents),
     Comment (..),
+    Account (..),
     Post (..),
     Subreddit (..),
     CanCommentOn (..),
@@ -221,6 +222,33 @@ instance FromJSON Comment where
     editedTime <- convertEditedTime <$> v .: "edited"
     pure $ Comment {..}
 
+-- Account
+
+data Account = Account
+  { id' :: ID Account,
+    -- | Username (without the @\/u\/@ prefix).
+    username :: Text,
+    -- | Display name. Empty if not set.
+    display_name :: Text,
+    link_karma :: Int,
+    comment_karma :: Int,
+    total_karma :: Int,
+    createdTime :: UTCTime
+  }
+  deriving (Eq, Ord, Show)
+
+instance FromJSON Account where
+  parseJSON = withObject "Account" $ \o -> do
+    v <- o .: "data"
+    id' <- AccountID <$> v .: "id"
+    username <- v .: "name"
+    display_name <- v .: "subreddit" >>= (.: "title")
+    link_karma <- v .: "link_karma"
+    comment_karma <- v .: "comment_karma"
+    total_karma <- v .: "total_karma"
+    createdTime <- posixSecondsToUTCTime <$> v .: "created_utc"
+    pure $ Account {..}
+
 -- Post
 
 -- | A single post
@@ -292,14 +320,6 @@ instance FromJSON Subreddit where
     subscribers <- v .: "subscribers"
     created <- posixSecondsToUTCTime <$> v .: "created"
     pure $ Subreddit {..}
-
--- Account
-
-data Account = Account
-  { id' :: ID Account,
-    created :: UTCTime
-  }
-  deriving (Eq, Ord, Show)
 
 -- Award
 

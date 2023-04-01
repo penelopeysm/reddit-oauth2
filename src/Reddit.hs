@@ -37,11 +37,14 @@ module Reddit
     Credentials (..),
     withCredentials,
 
-    -- * Users
+    -- * Accounts (i.e. users)
 
     --
-    -- $users
-    user,
+    -- $accounts
+    Reddit.Types.Account (..),
+    getAccounts,
+    getAccount,
+    getAccountByName,
 
     -- * Comments
 
@@ -51,6 +54,7 @@ module Reddit
     getComments,
     getComment,
     addNewComment,
+    accountComments,
     subredditComments,
 
     -- * Posts
@@ -60,6 +64,7 @@ module Reddit
     Reddit.Types.Post (..),
     getPosts,
     getPost,
+    accountPosts,
     subredditPosts,
 
     -- * Subreddits
@@ -170,9 +175,9 @@ withCredentials creds userAgent = do
             ( "grant_type"
                 =: ("password" :: Text)
                 <> "username"
-                  =: username creds
+                  =: creds.username
                 <> "password"
-                  =: password creds
+                  =: creds.password
             )
     let options = basicAuth (TE.encodeUtf8 (clientID creds)) (TE.encodeUtf8 (clientSecret creds))
     response <- req POST uri body lbsResponse options
@@ -211,7 +216,7 @@ checkTokenValidity = do
     (liftIO (throwIO TokenExpiredException))
 
 -- $listings
--- Listings are not exposed to the user. There is no real reason why 
+-- Listings are not exposed to the user. There is no real reason why
 
 getListingContentsByIDs :: (HasID t, FromJSON t) => [ID t] -> RedditT [t]
 getListingContentsByIDs ids = do
@@ -234,21 +239,6 @@ getSingleThingByID its_id = do
   case thing of
     [t] -> pure t
     _ -> fail "Reddit response had incorrect length"
-
--- $users
---
--- Fetch a user.
--- TODO: Implement the right type.
-
--- | Get information about a user
-user :: Text -> RedditT ByteString
-user username = do
-  env <- ask
-  checkTokenValidity
-  liftIO $ runReq defaultHttpConfig $ do
-    let uri = https oauth /: "user" /: username /: "about"
-    response <- req GET uri NoReqBody bsResponse (withUAToken env)
-    pure $ responseBody response
 
 -- $comments
 -- Blah.
@@ -283,6 +273,19 @@ addNewComment x body = do
     let body_params = "thing_id" =: fullName <> "text" =: body
     void $ req POST uri (ReqBodyUrlEnc body_params) ignoreResponse req_params
 
+-- | Get the most recent comments by a user.
+accountComments ::
+  -- | Username
+  Text ->
+  RedditT [Comment]
+accountComments uname = do
+  env <- ask
+  respBody <- liftIO $ runReq defaultHttpConfig $ do
+    let uri = https oauth /: "user" /: uname /: "comments"
+    response <- req GET uri NoReqBody lbsResponse (withUAToken env)
+    pure (responseBody response)
+  contents <$> throwDecode respBody
+
 -- | Get the most recent 25 comments on a subreddit. This endpoint is
 -- undocumented!
 subredditComments :: Text -> RedditT [Comment]
@@ -294,6 +297,28 @@ subredditComments sr = do
     response <- req GET uri NoReqBody lbsResponse (withUAToken env)
     pure (responseBody response)
   contents <$> throwDecode respBody
+
+-- $accounts
+-- Accounts.
+
+getAccounts :: [ID Account] -> RedditT [Account]
+getAccounts = getListingContentsByIDs
+
+getAccount :: ID Account -> RedditT Account
+getAccount = getSingleThingByID
+
+-- | Retrieve details about a user.
+getAccountByName ::
+  -- | Username
+  Text ->
+  RedditT Account
+getAccountByName uname = do
+  env <- ask
+  respBody <- liftIO $ runReq defaultHttpConfig $ do
+    let uri = https oauth /: "user" /: uname /: "about"
+    response <- req GET uri NoReqBody lbsResponse (withUAToken env)
+    pure (responseBody response)
+  throwDecode respBody
 
 -- $posts
 --
@@ -311,6 +336,19 @@ getPosts = getListingContentsByIDs
 -- | Fetch a single post by its ID.
 getPost :: ID Post -> RedditT Post
 getPost = getSingleThingByID
+
+-- | Get the most recent posts by a user.
+accountPosts ::
+  -- | Username
+  Text ->
+  RedditT [Post]
+accountPosts uname = do
+  env <- ask
+  respBody <- liftIO $ runReq defaultHttpConfig $ do
+    let uri = https oauth /: "user" /: uname /: "submitted"
+    response <- req GET uri NoReqBody lbsResponse (withUAToken env)
+    pure (responseBody response)
+  contents <$> throwDecode respBody
 
 -- | Get the first 25 posts on a subreddit
 subredditPosts :: Text -> SubredditSort -> RedditT [Post]
