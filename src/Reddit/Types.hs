@@ -18,7 +18,9 @@ module Reddit.Types
     Comment (..),
     Account (..),
     Post (..),
+    Message (..),
     Subreddit (..),
+    Award (..),
     CanCommentOn (..),
     HasID (..),
     EditedUTCTime (..),
@@ -37,13 +39,13 @@ redditURL :: Text
 redditURL = "https://reddit.com"
 
 -- | Reddit \'things\' have an ID, which (in the raw JSON) is a string prefixed
--- by "t1_", "t2_", "t3_"... depending on what type of object it is. In this
--- library, IDs are stored __without__ this prefix; so @CommentID "abcde"@ is
--- equivalent to Reddit's @"t1_abcde"@.
+-- by @"t1_"@, @"t2_"@, @"t3_"@... depending on what type of object it is. In
+-- this library, IDs are stored __without__ this prefix; so @CommentID "abcde"@
+-- is equivalent to Reddit's @"t1_abcde"@.
 --
 -- By the way, this is my first time dabbling with GADTs in a library, so I'm
 -- not completely sure if it's the correct (or the smartest) way to do it.
--- Please get in touch if you want to tell me about alternatives etc.
+-- Please get in touch if you want to tell me about alternatives.
 data ID a where
   -- | t1_
   CommentID :: Text -> ID Comment
@@ -166,6 +168,9 @@ instance (FromJSON t) => FromJSON (Listing t) where
 
 -- Convenience functions to deal with some weird responses from Reddit's API
 
+-- | Reddit's API does not always preserve the time that a comment was edited
+-- (particularly for old comments, I think), so these are the three
+-- possibilities for the @editedTime@ field of comments and posts.
 data EditedUTCTime
   = NeverEdited
   | EditedButTimeUnknown
@@ -186,7 +191,7 @@ data Comment = Comment
     -- | Permalink.
     url :: Text,
     score :: Int,
-    -- | Username of the author (without the @\/u\/@ prefix).
+    -- | Username of the author (without the @\/u\/@).
     author :: Text,
     author_id :: ID Account,
     -- | Body text in Markdown.
@@ -197,7 +202,7 @@ data Comment = Comment
     post_id :: ID Post,
     -- | Whether the commenter also made the post.
     is_submitter :: Bool,
-    -- | If the comment is a top-level comment, this is the same as @post_id@; otherwise it's the ID of the parent comment.
+    -- | If the comment is a top-level comment, this is the same as @Right@ of @post_id@; otherwise it's @Left@ of parent comment's ID.
     parent_id :: Either (ID Comment) (ID Post),
     createdTime :: UTCTime,
     editedTime :: EditedUTCTime
@@ -228,7 +233,7 @@ data Account = Account
   { id' :: ID Account,
     -- | Username (without the @\/u\/@ prefix).
     username :: Text,
-    -- | Display name. Empty if not set.
+    -- | The name that's shown on their profile. Empty if not set.
     display_name :: Text,
     link_karma :: Int,
     comment_karma :: Int,
@@ -257,7 +262,7 @@ data Post = Post
     -- | Permalink.
     url :: Text,
     score :: Int,
-    -- | Username of the author (without the @\/u\/@ prefix).
+    -- | Username of the author (without the @\/u\/@).
     author :: Text,
     author_id :: ID Account,
     title :: Text,
@@ -267,7 +272,7 @@ data Post = Post
     content_url :: Text,
     -- | None if not flaired.
     flairtext :: Maybe Text,
-    -- | Name of the subreddit (without the @\/r\/@ prefix)
+    -- | Name of the subreddit (without the @\/r\/@)
     subreddit :: Text,
     subreddit_id :: ID Subreddit,
     createdTime :: UTCTime,
@@ -297,7 +302,7 @@ instance FromJSON Post where
 
 data Subreddit = Subreddit
   { id' :: ID Subreddit,
-    -- | Subreddit name (without the @\/r\/@ prefix).
+    -- | Subreddit name (without the @\/r\/@).
     name :: Text,
     -- | Human name (the string that appears at the top of the sub).
     title :: Text,

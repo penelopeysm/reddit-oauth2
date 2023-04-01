@@ -24,10 +24,10 @@ extra-source-files: CHANGELOG.md
 library
     exposed-modules:
       Reddit,
-      Reddit.Auth
       Reddit.Example
 
     other-modules:
+      Reddit.Auth
       Reddit.Types
 
     default-extensions:

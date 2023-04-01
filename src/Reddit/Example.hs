@@ -10,11 +10,11 @@
 -- Maintainer  : penelopeysm@gmail.com
 -- Stability   : experimental
 --
--- When run, this script will log each new comment posted in \/r\/haskell to
+-- When run, this script will log each new comment posted in @\/r\/haskell@ to
 -- standard output, scans it for the phrase @"Haskell is great!!!!!!!!!"@, and
 -- if that is found, replies to them with @"Indeed, it is!"@. (I put in 9
 -- exclamation marks because I don't want to be morally responsible for somebody
--- gratuitously importing and running it.)
+-- gratuitously importing it, running it, and spamming the sub.)
 --
 -- Anyway, you should look at the source code for this module instead of the
 -- built Haddocks. It contains many explanatory comments.
@@ -30,16 +30,16 @@ import Reddit
 import System.Environment (getEnv)
 import System.IO (stderr)
 
--- getEnv but acts on Text values
+-- | 'System.Environment.getEnv' but acts on 'Data.Text.Text' values.
 getEnvAsText :: T.Text -> IO T.Text
 getEnvAsText = fmap T.pack . getEnv . T.unpack
 
--- A callback function acting on comments, which takes an Int input state, the
--- comment it sees, and does some kind of action on Reddit that ultimately
--- returns another Int. The returned value will be used as the input the next
--- time the callback is executed, i.e. on the next comment.
-replyToGreatHaskell :: Int -> Comment -> RedditT Int
-replyToGreatHaskell count cmt = do
+-- | An example of a callback function acting on comments. It takes an 'Int'
+-- input state, the comment it sees, and does some kind of action on Reddit that
+-- ultimately returns another 'Int'. The returned value will be used as the
+-- input the next time the callback is executed, i.e. on the next comment.
+replyIfHaskellGreat :: Int -> Comment -> RedditT Int
+replyIfHaskellGreat count cmt = do
   -- Print details about the comment on standard output
   let p = liftIO . T.putStrLn
   p ""
@@ -57,6 +57,7 @@ replyToGreatHaskell count cmt = do
     (p "Replying to it..." >> addNewComment cmt.id' replyText)
   pure (count + 1)
 
+-- | Run the bot.
 main :: IO ()
 main = do
   -- Read in your secrets from environment variables (or wherever you like).
@@ -78,7 +79,7 @@ main = do
 
   -- Run the bot.
   runRedditT' env $ do
-    commentStream True replyToGreatHaskell 1 "haskell"
+    commentStream True replyIfHaskellGreat 1 "haskell"
 
   -- commentStream is a recursive function and, in principle, should never end.
   -- However, the two lines above this are quite naive: in practice you have to
@@ -99,7 +100,7 @@ main = do
   let protectedAction =
         catch
           -- The original action
-          (runRedditT' env $ commentStream True replyToGreatHaskell 1 "haskell")
+          (runRedditT' env $ commentStream True replyIfHaskellGreat 1 "haskell")
           -- If we get an exception, print it, wait 5 seconds, then try again.
           ( \(e :: SomeException) -> do
               T.hPutStrLn stderr ("Exception: " <> T.pack (show e))

@@ -27,8 +27,8 @@ module Reddit
     runRedditT,
     runRedditT',
     Reddit.Types.ID (..),
-    Timeframe (..),
-    SubredditSort (..),
+    Reddit.Types.HasID (..),
+    Reddit.Types.CanCommentOn (..),
     Reddit.Types.EditedUTCTime (..),
     -- | #credentials#
 
@@ -36,15 +36,6 @@ module Reddit
     -- $credentials
     Credentials (..),
     withCredentials,
-
-    -- * Accounts (i.e. users)
-
-    --
-    -- $accounts
-    Reddit.Types.Account (..),
-    getAccounts,
-    getAccount,
-    getAccountByName,
 
     -- * Comments
 
@@ -57,6 +48,15 @@ module Reddit
     accountComments,
     subredditComments,
 
+    -- * Accounts (i.e. users)
+
+    --
+    -- $accounts
+    Reddit.Types.Account (..),
+    getAccounts,
+    getAccount,
+    getAccountByName,
+
     -- * Posts
 
     --
@@ -65,7 +65,15 @@ module Reddit
     getPosts,
     getPost,
     accountPosts,
+    Timeframe (..),
+    SubredditSort (..),
     subredditPosts,
+
+    -- * Messages
+
+    --
+    -- $messages
+    Reddit.Types.Message (..),
 
     -- * Subreddits
 
@@ -76,6 +84,12 @@ module Reddit
     getSubreddit,
     getSubredditsByName,
     getSubredditByName,
+
+    -- * Awards
+
+    --
+    -- $awards
+    Reddit.Types.Award (..),
 
     -- * Streams
 
@@ -124,7 +138,7 @@ type RedditT = ReaderT RedditEnv IO
 runRedditT :: RedditT a -> RedditEnv -> IO a
 runRedditT = runReaderT
 
--- | @runRedditT'@ is @flip runRedditT@ and is often more ergonomic.
+-- | @runRedditT'@ is @flip 'runRedditT'@ and is slightly more ergonomic.
 runRedditT' :: RedditEnv -> RedditT a -> IO a
 runRedditT' = flip runReaderT
 
@@ -160,11 +174,13 @@ data Credentials = Credentials
   }
   deriving (Show)
 
--- | Exchange user account credentials for a RedditEnv, which is required to run
--- all Reddit queries.
+-- | Exchange user account credentials for a 'RedditEnv', which is required to
+-- run all Reddit queries.
 withCredentials ::
   Credentials ->
-  -- | Your user-agent. Reddit says you should use a unique and identifiable user-agent.
+  -- | Your user-agent. [Reddit
+  -- says](https://github.com/reddit-archive/reddit/wiki/API) you should use a
+  -- unique and identifiable user-agent.
   Text ->
   IO RedditEnv
 withCredentials creds userAgent = do
@@ -241,17 +257,18 @@ getSingleThingByID its_id = do
     _ -> fail "Reddit response had incorrect length"
 
 -- $comments
--- Blah.
 
--- | Fetch a list of comments by their IDs.
+-- | Fetch a list of comments by their IDs. More efficient than @map getCmment@
+-- because it only makes one API call.
 --
--- TODO: This uses the /api/info endpoint, which (apparently) provides slightly
--- less information than /comments/<article>. For example, this endpoint doesn't
--- provide a list of replies. This is probably worth investigating.
+-- TODO: This uses the @\/api\/info@ endpoint, which (apparently) provides
+-- slightly less information than @\/comments\/\<article\>@. For example, this
+-- endpoint doesn't provide a list of replies. This is probably worth
+-- investigating.
 getComments :: [ID Comment] -> RedditT [Comment]
 getComments = getListingContentsByIDs
 
--- | Fetch a single comment by its ID.
+-- | Fetch a single comment given its ID.
 getComment :: ID Comment -> RedditT Comment
 getComment = getSingleThingByID
 
@@ -275,7 +292,7 @@ addNewComment x body = do
 
 -- | Get the most recent comments by a user.
 accountComments ::
-  -- | Username
+  -- | Username (without the @\/u\/@).
   Text ->
   RedditT [Comment]
 accountComments uname = do
@@ -286,9 +303,11 @@ accountComments uname = do
     pure (responseBody response)
   contents <$> throwDecode respBody
 
--- | Get the most recent 25 comments on a subreddit. This endpoint is
--- undocumented!
-subredditComments :: Text -> RedditT [Comment]
+-- | Get the most recent 25 comments on a subreddit.
+subredditComments ::
+  -- | Subreddit name (without the @\/r\/@).
+  Text ->
+  RedditT [Comment]
 subredditComments sr = do
   env <- ask
   checkTokenValidity
@@ -301,15 +320,18 @@ subredditComments sr = do
 -- $accounts
 -- Accounts.
 
+-- | Fetch a list of accounts given their IDs. More efficient than @map
+-- getAccount@ because it only makes one API call.
 getAccounts :: [ID Account] -> RedditT [Account]
 getAccounts = getListingContentsByIDs
 
+-- | Fetch a single account given its ID.
 getAccount :: ID Account -> RedditT Account
 getAccount = getSingleThingByID
 
--- | Retrieve details about a user.
+-- | Fetch details about a named user.
 getAccountByName ::
-  -- | Username
+  -- | Username (without the @\/u\/@).
   Text ->
   RedditT Account
 getAccountByName uname = do
@@ -329,17 +351,18 @@ data Timeframe = Hour | Day | Week | Month | Year | All
 
 data SubredditSort = Hot | New | Random | Rising | Top Timeframe | Controversial Timeframe
 
--- | Fetch a list of posts by their IDs.
+-- | Fetch a list of posts by their IDs. More efficient than @map getPost@
+-- because it only makes one API call.
 getPosts :: [ID Post] -> RedditT [Post]
 getPosts = getListingContentsByIDs
 
--- | Fetch a single post by its ID.
+-- | Fetch a single post given its ID.
 getPost :: ID Post -> RedditT Post
 getPost = getSingleThingByID
 
 -- | Get the most recent posts by a user.
 accountPosts ::
-  -- | Username
+  -- | Username (without the @\/u\/@).
   Text ->
   RedditT [Post]
 accountPosts uname = do
@@ -350,8 +373,14 @@ accountPosts uname = do
     pure (responseBody response)
   contents <$> throwDecode respBody
 
--- | Get the first 25 posts on a subreddit
-subredditPosts :: Text -> SubredditSort -> RedditT [Post]
+-- | Get the first 25 posts on a subreddit.
+subredditPosts ::
+  -- | Subreddit name (without the @\/r\/@).
+  Text ->
+  -- | Sort type for the subreddit posts. Entirely analogous to the options when
+  -- browsing Reddit on the web.
+  SubredditSort ->
+  RedditT [Post]
 subredditPosts sr sort = do
   env <- ask
   checkTokenValidity
@@ -375,20 +404,29 @@ subredditPosts sr sort = do
     pure (responseBody response)
   contents <$> throwDecode respBody
 
+-- $messages
+--
+-- Messages aren't implemented yet.
+
 -- $subreddits
 --
 -- Subreddits.
 
--- | Fetch a list of subreddits by their IDs.
+-- | Fetch a list of subreddits by their IDs. More efficient than @map
+-- getSubreddit@ because it only makes one API call.
 getSubreddits :: [ID Subreddit] -> RedditT [Subreddit]
 getSubreddits = getListingContentsByIDs
 
--- | Fetch a single subreddit by its ID.
+-- | Fetch a single subreddit given its ID.
 getSubreddit :: ID Subreddit -> RedditT Subreddit
 getSubreddit = getSingleThingByID
 
--- | Fetch a list of subreddits by their names.
-getSubredditsByName :: [Text] -> RedditT [Subreddit]
+-- | Fetch a list of subreddits by their names. More efficient than @map
+-- getSubredditByName@.
+getSubredditsByName ::
+  -- | List of subreddit names (without the @\/r\/@'s).
+  [Text] ->
+  RedditT [Subreddit]
 getSubredditsByName s_names = do
   env <- ask
   let allNames = T.intercalate "," s_names
@@ -404,12 +442,19 @@ getSubredditsByName s_names = do
   pure psts
 
 -- | Fetch a single subreddit by its ID.
-getSubredditByName :: Text -> RedditT Subreddit
+getSubredditByName ::
+  -- | Subreddit name (without the @\/r\/@).
+  Text ->
+  RedditT Subreddit
 getSubredditByName s_name = do
   srd <- getSubredditsByName [s_name]
   case srd of
     [s] -> pure s
     _ -> fail "Reddit response had incorrect length"
+
+-- $awards
+--
+-- Awards aren't implemented yet.
 
 -- $streams
 --
@@ -483,7 +528,7 @@ postStream ::
   (state -> Post -> RedditT state) ->
   -- | Initial state for callback.
   state ->
-  -- | Subreddit name.
+  -- | Subreddit name (without the @\/r\/@).
   Text ->
   RedditT ()
 postStream ignoreExisting cb cbInit sr = stream ignoreExisting cb cbInit (subredditPosts sr New)
@@ -498,7 +543,7 @@ commentStream ::
   (state -> Comment -> RedditT state) ->
   -- | Initial state for callback.
   state ->
-  -- | Subreddit name.
+  -- | Subreddit name (without the @\/r\/@).
   Text ->
   RedditT ()
 commentStream ignoreExisting cb cbInit sr = stream ignoreExisting cb cbInit (subredditComments sr)
