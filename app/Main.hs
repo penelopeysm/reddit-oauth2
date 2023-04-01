@@ -28,17 +28,14 @@ main = do
 
   env <- withCredentials creds userAgent
 
-  let showC :: Int -> Comment -> RedditT Int
-      showC count cmt = do
-        let p = liftIO . T.putStrLn
-        p ""
-        p "Found new comment!"
-        p $ "By    : /u/" <> cmt.author
-        p $ "Link  : " <> cmt.url
-        p $ "Text  : " <> cmt.body
-        p $ "Posted at  : " <> T.pack (show cmt.createdTime)
-        pure (count + 1)
+  let showCommentInfo :: Comment -> IO ()
+      showCommentInfo c = do
+        putStr (show c.createdTime)
+        putStr "          "
+        putStr "by /u/"
+        T.putStr c.author
+        T.putStrLn ""
 
   runRedditT' env $ do
-    ps <- accountComments "is_a_togekiss"
-    liftIO $ mapM_ (\p -> print p.createdTime >> print p.body) ps
+    cmts <- subredditComments 250 "pokemontrades"
+    liftIO $ mapM_ showCommentInfo cmts

@@ -21,15 +21,12 @@
 -- otherwise self-explanatory. Please feel free to raise an issue if there are
 -- any unclear aspects.
 module Reddit
-  ( -- * Types
-    RedditEnv,
+  ( -- * The @RedditT@ monad
     RedditT (..),
     runRedditT,
     runRedditT',
-    Reddit.Types.ID (..),
-    Reddit.Types.HasID (..),
-    Reddit.Types.CanCommentOn (..),
-    Reddit.Types.EditedUTCTime (..),
+    RedditEnv,
+    streamDelay,
     -- | #credentials#
 
     -- * Authentication with account credentials
@@ -99,6 +96,12 @@ module Reddit
     stream',
     postStream,
     commentStream,
+
+    -- * Other types
+    Reddit.Types.ID (..),
+    Reddit.Types.HasID (..),
+    Reddit.Types.CanCommentOn (..),
+    Reddit.Types.EditedUTCTime (..),
   )
 where
 
@@ -115,18 +118,42 @@ import Data.List (union, (\\))
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
+import qualified Data.Text.IO as T
 import Data.Time.Clock
+import GHC.Float.RealFracMethods (floorDoubleInt)
 import Network.HTTP.Req
 import qualified Reddit.Auth as Auth
 import Reddit.Types
 
 -- | Everything required to query the Reddit API.
+--
+-- This is a record type which includes things that you /might/ want to change
+-- (e.g. configuration variables), as well as some things that you really
+-- /should not/ change (e.g. the access token). Because of this, not all field
+-- accessors are exported; but due to [a bug in
+-- Haddock](https://github.com/haskell/haddock/issues/456), the ones that are
+-- exported are documented as separate functions instead of \'standalone\' field
+-- accessors. However, they /are/ still field accessors, so you can still do
+-- things like:
+--
+-- @
+--    env <- 'withCredentials' ...
+--    let modifiedEnv = env {'streamDelay' = 2}
+-- @
+--
+-- To be clear, the exported field accessors are: 'streamDelay' only (so far).
 data RedditEnv = RedditEnv
-  { envToken :: ByteString,
-    envTokenType :: ByteString,
-    envTokenExpiresAt :: UTCTime,
-    envTokenScope :: ByteString,
-    envUserAgent :: ByteString
+  { -- | OAuth2 token contents. Don't modify these.
+    token :: ByteString,
+    tokenType :: ByteString,
+    tokenExpiresAt :: UTCTime,
+    tokenScope :: ByteString,
+    -- | User-agent. Should be unique.
+    userAgent :: ByteString,
+    -- | Delay (in seconds) between successive requests when using
+    -- [streams](#streams). Reddit says you should not be querying more than 60
+    -- times in a minute, so this should not go below 1. Defaults to 5.
+    streamDelay :: Double
   }
   deriving (Show)
 
@@ -183,7 +210,7 @@ withCredentials ::
   -- unique and identifiable user-agent.
   Text ->
   IO RedditEnv
-withCredentials creds userAgent = do
+withCredentials creds ua = do
   (tokenInternal :: Auth.TokenInternal) <- runReq defaultHttpConfig $ do
     let uri = https "www.reddit.com" /: "api" /: "v1" /: "access_token"
     let body =
@@ -204,18 +231,19 @@ withCredentials creds userAgent = do
   let expires_at = addUTCTime seconds currentTime
   pure $
     RedditEnv
-      { envToken = TE.encodeUtf8 tokenInternal._access_token,
-        envTokenType = TE.encodeUtf8 tokenInternal._token_type,
-        envTokenScope = TE.encodeUtf8 tokenInternal._scope,
-        envTokenExpiresAt = expires_at,
-        envUserAgent = TE.encodeUtf8 userAgent
+      { token = TE.encodeUtf8 tokenInternal._access_token,
+        tokenType = TE.encodeUtf8 tokenInternal._token_type,
+        tokenScope = TE.encodeUtf8 tokenInternal._scope,
+        tokenExpiresAt = expires_at,
+        userAgent = TE.encodeUtf8 ua,
+        streamDelay = 5
       }
 
 oauth :: Text
 oauth = "oauth.reddit.com"
 
 withUAToken :: RedditEnv -> Option 'Https
-withUAToken env = header "user-agent" (envUserAgent env) <> oAuth2Bearer (envToken env)
+withUAToken env = header "user-agent" (userAgent env) <> oAuth2Bearer (token env)
 
 data RedditException = TokenExpiredException deriving (Show)
 
@@ -225,7 +253,7 @@ instance Exception RedditException
 -- determine if token has expired
 checkTokenValidity :: RedditT ()
 checkTokenValidity = do
-  expiryTime <- reader envTokenExpiresAt
+  expiryTime <- reader tokenExpiresAt
   currentTime <- liftIO getCurrentTime
   when
     (nominalDiffTimeToSeconds (diffUTCTime currentTime expiryTime) > 0)
@@ -234,8 +262,74 @@ checkTokenValidity = do
 -- $listings
 -- Listings are not exposed to the user. There is no real reason why
 
-getListingContentsByIDs :: (HasID t, FromJSON t) => [ID t] -> RedditT [t]
-getListingContentsByIDs ids = do
+-- | Internal function to fetch n <= 100 results from a given URI. Assumes that
+-- the listing will be homogeneous.
+--
+-- This assumes that the endpoint accepts the 'limit' and 'after' URL-encoded
+-- parameters.
+getListingSingle ::
+  (HasID t, FromJSON t) =>
+  -- | The number of things to ask for. Must be 100 or fewer.
+  Int ->
+  -- | The value of @after@ to pass in the query.
+  Maybe Text ->
+  -- | The URL to query
+  Url 'Https ->
+  -- | URL-encoded params. Use @mempty@ if not needed.
+  Option 'Https ->
+  -- | The things, plus the \'after\' field returned by Reddit.
+  RedditT ([t], Maybe Text)
+getListingSingle size aft url in_params = do
+  env <- ask
+  when (size > 100) (error "getListingSingle: size should be 100 or less. This is a bug, please report it.")
+  let params =
+        in_params
+          <> withUAToken env
+          <> "limit" =: size
+          <> ( case aft of
+                 Just t -> "after" =: t
+                 Nothing -> mempty
+             )
+  respBody <- liftIO $ runReq defaultHttpConfig $ do
+    response <- req GET url NoReqBody lbsResponse params
+    pure (responseBody response)
+  listing <- throwDecode respBody
+  pure (contents listing, after listing)
+
+-- | Internal function to fetch n <= 1000 results from a given URI. Assumes that
+-- the returned listing will be homogeneous.
+--
+-- This assumes that the endpoint accepts the 'count' and 'after' URL-encoded
+-- parameters.
+getListings ::
+  (HasID t, FromJSON t) =>
+  -- | The number of things to ask for. Must be 100 or fewer.
+  Int ->
+  -- | The 'after'
+  Maybe Text ->
+  -- | The URL to query
+  Url 'Https ->
+  -- | URL-encoded params. Use @mempty@ if not needed.
+  Option 'Https ->
+  -- | All the things, concatenated into a single list.
+  RedditT [t]
+getListings size aft uri in_params = do
+  if size <= 100
+    then fst <$> getListingSingle size aft uri in_params
+    else do
+      (first_batch, aft') <- getListingSingle 100 aft uri in_params
+      case aft' of
+        Nothing -> pure first_batch -- No more stuff to get.
+        Just a -> do
+          remainder <- getListings (size - 100) (Just a) uri in_params
+          -- TODO: O(N^2). Bad.
+          pure (first_batch ++ remainder)
+
+-- | This is a generic function querying the /api/info endpoint.
+--
+-- TODO: Fix when the list is more than 100 elements long.
+getThingsByIDs :: (HasID t, FromJSON t) => [ID t] -> RedditT [t]
+getThingsByIDs ids = do
   env <- ask
   let fullNames = T.intercalate "," (map mkFullNameFromID ids)
   respBody <- liftIO $ runReq defaultHttpConfig $ do
@@ -249,14 +343,12 @@ getListingContentsByIDs ids = do
     (fail $ "Reddit response had incorrect length: expected " <> show (length ids) <> ", found " <> show (length ct))
   pure ct
 
-getSingleThingByID :: (HasID t, FromJSON t) => ID t -> RedditT t
-getSingleThingByID its_id = do
-  thing <- getListingContentsByIDs [its_id]
+getThingByID :: (HasID t, FromJSON t) => ID t -> RedditT t
+getThingByID its_id = do
+  thing <- getThingsByIDs [its_id]
   case thing of
     [t] -> pure t
     _ -> fail "Reddit response had incorrect length"
-
--- $comments
 
 -- | Fetch a list of comments by their IDs. More efficient than @map getCmment@
 -- because it only makes one API call.
@@ -266,11 +358,11 @@ getSingleThingByID its_id = do
 -- endpoint doesn't provide a list of replies. This is probably worth
 -- investigating.
 getComments :: [ID Comment] -> RedditT [Comment]
-getComments = getListingContentsByIDs
+getComments = getThingsByIDs
 
 -- | Fetch a single comment given its ID.
 getComment :: ID Comment -> RedditT Comment
-getComment = getSingleThingByID
+getComment = getThingByID
 
 -- | Add a new comment as a reply to an existing post or comment.
 addNewComment ::
@@ -292,30 +384,31 @@ addNewComment x body = do
 
 -- | Get the most recent comments by a user.
 accountComments ::
+  -- | Number of comments to fetch. Up to 100 can be fetched in a single
+  -- request; if this number is more than 100, multiple requests will be used.
+  -- The number of returned results is capped at 1000 (this is a limitation of
+  -- Reddit's API).
+  Int ->
   -- | Username (without the @\/u\/@).
   Text ->
   RedditT [Comment]
-accountComments uname = do
-  env <- ask
-  respBody <- liftIO $ runReq defaultHttpConfig $ do
-    let uri = https oauth /: "user" /: uname /: "comments"
-    response <- req GET uri NoReqBody lbsResponse (withUAToken env)
-    pure (responseBody response)
-  contents <$> throwDecode respBody
+accountComments n uname =
+  let uri = (https oauth /: "user" /: uname /: "comments")
+   in getListings n Nothing uri mempty
 
--- | Get the most recent 25 comments on a subreddit.
+-- | Get the most recent comments on a subreddit.
 subredditComments ::
+  -- | Number of comments to fetch. Up to 100 can be fetched in a single
+  -- request; if this number is more than 100, multiple requests will be used.
+  -- The number of returned results is capped at 1000 (this is a limitation of
+  -- Reddit's API).
+  Int ->
   -- | Subreddit name (without the @\/r\/@).
   Text ->
   RedditT [Comment]
-subredditComments sr = do
-  env <- ask
-  checkTokenValidity
-  respBody <- liftIO $ runReq defaultHttpConfig $ do
-    let uri = https oauth /: "r" /: sr /: "comments"
-    response <- req GET uri NoReqBody lbsResponse (withUAToken env)
-    pure (responseBody response)
-  contents <$> throwDecode respBody
+subredditComments n sr =
+  let uri = https oauth /: "r" /: sr /: "comments"
+   in getListings n Nothing uri mempty
 
 -- $accounts
 -- Accounts.
@@ -323,11 +416,11 @@ subredditComments sr = do
 -- | Fetch a list of accounts given their IDs. More efficient than @map
 -- getAccount@ because it only makes one API call.
 getAccounts :: [ID Account] -> RedditT [Account]
-getAccounts = getListingContentsByIDs
+getAccounts = getThingsByIDs
 
 -- | Fetch a single account given its ID.
 getAccount :: ID Account -> RedditT Account
-getAccount = getSingleThingByID
+getAccount = getThingByID
 
 -- | Fetch details about a named user.
 getAccountByName ::
@@ -354,36 +447,40 @@ data SubredditSort = Hot | New | Random | Rising | Top Timeframe | Controversial
 -- | Fetch a list of posts by their IDs. More efficient than @map getPost@
 -- because it only makes one API call.
 getPosts :: [ID Post] -> RedditT [Post]
-getPosts = getListingContentsByIDs
+getPosts = getThingsByIDs
 
 -- | Fetch a single post given its ID.
 getPost :: ID Post -> RedditT Post
-getPost = getSingleThingByID
+getPost = getThingByID
 
 -- | Get the most recent posts by a user.
 accountPosts ::
+  -- | Number of posts to fetch. Up to 100 can be fetched in a single request;
+  -- if this number is more than 100, multiple requests will be used. The number
+  -- of returned results is capped at 1000 (this is a limitation of Reddit's
+  -- API).
+  Int ->
   -- | Username (without the @\/u\/@).
   Text ->
   RedditT [Post]
-accountPosts uname = do
-  env <- ask
-  respBody <- liftIO $ runReq defaultHttpConfig $ do
-    let uri = https oauth /: "user" /: uname /: "submitted"
-    response <- req GET uri NoReqBody lbsResponse (withUAToken env)
-    pure (responseBody response)
-  contents <$> throwDecode respBody
+accountPosts n uname = do
+  let uri = https oauth /: "user" /: uname /: "submitted"
+   in getListings n Nothing uri mempty
 
--- | Get the first 25 posts on a subreddit.
+-- | Get the posts from the front page of a subreddit.
 subredditPosts ::
+  -- | Number of posts to fetch. Up to 100 can be fetched in a single request;
+  -- if this number is more than 100, multiple requests will be used. The number
+  -- of returned results is capped at 1000 (this is a limitation of Reddit's
+  -- API).
+  Int ->
   -- | Subreddit name (without the @\/r\/@).
   Text ->
   -- | Sort type for the subreddit posts. Entirely analogous to the options when
   -- browsing Reddit on the web.
   SubredditSort ->
   RedditT [Post]
-subredditPosts sr sort = do
-  env <- ask
-  checkTokenValidity
+subredditPosts n sr sort = do
   let timeframe_text tf = case tf of
         Hour -> "hour" :: Text -- the type checker needs help
         Day -> "day"
@@ -398,11 +495,8 @@ subredditPosts sr sort = do
         Rising -> ("rising", mempty)
         Top tf -> ("top", "t" =: timeframe_text tf)
         Controversial tf -> ("controversial", "t" =: timeframe_text tf)
-  respBody <- liftIO $ runReq defaultHttpConfig $ do
-    let uri = https oauth /: "r" /: sr /: endpoint
-    response <- req GET uri NoReqBody lbsResponse (withUAToken env <> tf_params)
-    pure (responseBody response)
-  contents <$> throwDecode respBody
+  let uri = https oauth /: "r" /: sr /: endpoint
+   in getListings n Nothing uri tf_params
 
 -- $messages
 --
@@ -415,11 +509,11 @@ subredditPosts sr sort = do
 -- | Fetch a list of subreddits by their IDs. More efficient than @map
 -- getSubreddit@ because it only makes one API call.
 getSubreddits :: [ID Subreddit] -> RedditT [Subreddit]
-getSubreddits = getListingContentsByIDs
+getSubreddits = getThingsByIDs
 
 -- | Fetch a single subreddit given its ID.
 getSubreddit :: ID Subreddit -> RedditT Subreddit
-getSubreddit = getSingleThingByID
+getSubreddit = getThingByID
 
 -- | Fetch a list of subreddits by their names. More efficient than @map
 -- getSubredditByName@.
@@ -470,7 +564,8 @@ getSubredditByName s_name = do
 -- Helper function.
 streamInner :: (Eq a) => [a] -> (t -> a -> RedditT t) -> t -> RedditT [a] -> RedditT ()
 streamInner seen cb cbInit src = do
-  liftIO $ threadDelay 5000000
+  delaySeconds <- asks streamDelay
+  liftIO $ threadDelay (floorDoubleInt (delaySeconds * 1000000))
   items <- src
   let new = items \\ seen
   cbUpdated <- foldM cb cbInit new
@@ -479,21 +574,25 @@ streamInner seen cb cbInit src = do
 -- | If you have an action which generates a list of things (with the type
 -- @RedditT [a]@), then @stream@ turns this an action which
 -- executes a callback function on an infinite list of things. It does so by
--- repeatedly fetching the list of things (every five seconds). Here, \'things\'
--- refers to comments, posts, and so on.
+-- repeatedly fetching the list of either comments or posts.
 --
 -- Apart from the thing being acted on, the callback function is allowed to also
 -- take, as input, some kind of state, and update that state by returning a new
 -- value. This allows the user to, for example, keep track of how many things
 -- have been seen so far, or perform actions conditionally based on what the
 -- stream has previously thrown up.
+--
+-- You can adjust two things here: firstly, the frequency with which the stream
+-- is refreshed, and secondly, the number of items fetched on each request.
+-- These can be changed using the "streamDelay" and "listingN" fields of the
+-- "RedditEnv" you are using. "Control.Monad.Reader.local" is particularly
+-- helpful here.
+--
+-- Note that "listingN" is already set to its maximum permissible value of 100
+-- by default, so you can only really decrease it (e.g. for low-traffic streams
+-- where you don't need to fetch too many things at once).
 stream ::
   (Eq a) =>
-  -- | Whether to ignore the things found in the first request. Since the first
-  -- request is run when the stream is started, this essentially amounts to
-  -- ignoring everything posted /before/ the stream is started. You will most
-  -- likely want this to be @True@.
-  Bool ->
   -- | A callback function to execute on all things found.
   (state -> a -> RedditT state) ->
   -- | The initial state for the callback function.
@@ -501,29 +600,23 @@ stream ::
   -- | The source of things to iterate over.
   RedditT [a] ->
   RedditT ()
-stream ignoreExisting cb cbInit src = do
+stream cb cbInit src = do
   first <- src
-  let seen = if ignoreExisting then first else []
-  streamInner seen cb cbInit src
+  streamInner first cb cbInit src
 
 -- | @stream'@ is a simpler version of @stream@, which accepts a callback that
 -- doesn't use state.
 stream' ::
   (Eq a) =>
   -- | Whether to ignore the first request.
-  Bool ->
-  -- | A callback function to execute on all things found.
   (a -> RedditT ()) ->
   -- | The source of things to iterate over.
   RedditT [a] ->
   RedditT ()
-stream' ignoreExisting cb' =
-  stream ignoreExisting (const cb') ()
+stream' cb' = stream (const cb') ()
 
 -- | Get a stream of new posts on a subreddit.
 postStream ::
-  -- | Whether to ignore the first request.
-  Bool ->
   -- | Callback function.
   (state -> Post -> RedditT state) ->
   -- | Initial state for callback.
@@ -531,14 +624,12 @@ postStream ::
   -- | Subreddit name (without the @\/r\/@).
   Text ->
   RedditT ()
-postStream ignoreExisting cb cbInit sr = stream ignoreExisting cb cbInit (subredditPosts sr New)
+postStream cb cbInit sr = stream cb cbInit (subredditPosts 100 sr New)
 
 -- | Get a stream of new comments on a subreddit. Note that this also includes
 -- edited comments (that's not a design choice, it's just how the Reddit API
 -- works).
 commentStream ::
-  -- | Whether to ignore the first request.
-  Bool ->
   -- | Callback function.
   (state -> Comment -> RedditT state) ->
   -- | Initial state for callback.
@@ -546,4 +637,4 @@ commentStream ::
   -- | Subreddit name (without the @\/r\/@).
   Text ->
   RedditT ()
-commentStream ignoreExisting cb cbInit sr = stream ignoreExisting cb cbInit (subredditComments sr)
+commentStream cb cbInit sr = stream cb cbInit (subredditComments 100 sr)

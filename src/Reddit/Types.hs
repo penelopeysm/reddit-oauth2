@@ -14,7 +14,7 @@
 -- information you need, please feel free to make an issue or PR.
 module Reddit.Types
   ( ID (..),
-    Listing (contents),
+    Listing (..),
     Comment (..),
     Account (..),
     Post (..),
@@ -169,7 +169,7 @@ instance (FromJSON t) => FromJSON (Listing t) where
 -- Convenience functions to deal with some weird responses from Reddit's API
 
 -- | Reddit's API does not always preserve the time that a comment was edited
--- (particularly for old comments, I think), so these are the three
+-- (particularly for old comments, I think), so these represent the three
 -- possibilities for the @editedTime@ field of comments and posts.
 data EditedUTCTime
   = NeverEdited

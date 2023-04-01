@@ -77,12 +77,12 @@ main = do
   -- Get the RedditEnv term needed to run Reddit queries.
   env <- withCredentials creds userAgent
 
-  -- Run the bot.
+  -- Run the bot, refreshing every 5 seconds (the default).
   runRedditT' env $ do
-    commentStream True replyIfHaskellGreat 1 "haskell"
+    commentStream replyIfHaskellGreat 1 "haskell"
 
   -- commentStream is a recursive function and, in principle, should never end.
-  -- However, the two lines above this are quite naive: in practice you have to
+  -- However, the implementation above is quite naive: in practice you have to
   -- account for exceptions, not least because Reddit servers seem to break
   -- about once every day. The easiest way to do this is to use the combinators
   -- in Control.Exception. The method shown here is quite crude, see e.g. the
@@ -92,7 +92,8 @@ main = do
   --
   -- There is a related issue, in that you can't extract the value of `count` so
   -- far if an exception is raised. If you wanted to do this properly, you
-  -- probably need to use something like a Data.IORef to store the value of count.
+  -- probably need to use something like a `Data.IORef` to store the value of
+  -- `count`.
   --
   -- Finally, note that, even though this nominally catches Ctrl-C exceptions,
   -- you can still kill the bot by pressing Ctrl-C twice:
@@ -100,7 +101,7 @@ main = do
   let protectedAction =
         catch
           -- The original action
-          (runRedditT' env $ commentStream True replyIfHaskellGreat 1 "haskell")
+          (runRedditT' env $ commentStream replyIfHaskellGreat 1 "haskell")
           -- If we get an exception, print it, wait 5 seconds, then try again.
           ( \(e :: SomeException) -> do
               T.hPutStrLn stderr ("Exception: " <> T.pack (show e))
