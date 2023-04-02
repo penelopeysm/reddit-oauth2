@@ -28,6 +28,7 @@ library
 
     other-modules:
       Reddit.Auth
+      Reddit.Queue
       Reddit.Types
 
     default-extensions:

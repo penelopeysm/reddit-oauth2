@@ -27,6 +27,7 @@ module Reddit
     runRedditT',
     RedditEnv,
     streamDelay,
+    streamStorageSize,
     -- | #credentials#
 
     -- * Authentication with account credentials
@@ -127,6 +128,7 @@ import GHC.Float.RealFracMethods (floorDoubleInt)
 import Network.HTTP.Req
 import qualified Reddit.Auth as Auth
 import Reddit.Types
+import qualified Reddit.Queue as Q
 
 -- | Everything required to query the Reddit API.
 --
@@ -144,7 +146,8 @@ import Reddit.Types
 --    let modifiedEnv = env {'streamDelay' = 2}
 -- @
 --
--- To be clear, the exported field accessors are: 'streamDelay' only (so far).
+-- To be clear, the exported field accessors are: 'streamDelay' and
+-- 'streamStorageSize'.
 data RedditEnv = RedditEnv
   { -- | OAuth2 token contents. Don't modify these.
     token :: ByteString,
@@ -156,7 +159,12 @@ data RedditEnv = RedditEnv
     -- | Delay (in seconds) between successive requests when using
     -- [streams](#streams). Reddit says you should not be querying more than 60
     -- times in a minute, so this should not go below 1. Defaults to 5.
-    streamDelay :: Double
+    streamDelay :: Double,
+    -- | Number of \'seen\' items to keep in memory when running a stream. If
+    -- you are requesting N items at a go, there doesn't appear to be much point
+    -- in making this larger than N. N should probably be 100, but this defaults
+    -- to 250 to be safe, because I'm not sure if there are weird edge cases.
+    streamStorageSize :: Int
   }
   deriving (Show)
 
@@ -239,7 +247,8 @@ withCredentials creds ua = do
         tokenScope = TE.encodeUtf8 tokenInternal._scope,
         tokenExpiresAt = expires_at,
         userAgent = TE.encodeUtf8 ua,
-        streamDelay = 5
+        streamDelay = 5,
+        streamStorageSize = 250
       }
 
 oauth :: Text
@@ -586,16 +595,15 @@ getSubredditByName s_name = do
 -- save a tiny bit of typing.
 
 -- Helper function.
-streamInner :: (Eq a) => [a] -> (t -> a -> RedditT t) -> t -> RedditT [a] -> RedditT ()
-streamInner seen cb cbInit src = do
+streamInner :: (Eq a) => Q.Queue a -> (t -> a -> RedditT t) -> t -> RedditT [a] -> RedditT ()
+streamInner queue cb cbInit src = do
+  -- `queue` essentially contains the last N items we've seen.
   delaySeconds <- asks streamDelay
   liftIO $ threadDelay (floorDoubleInt (delaySeconds * 1000000))
-  items <- reverse <$> src
-  let new = items \\ seen
-  cbUpdated <- foldM cb cbInit new
-  -- TODO: (seen `union` items) can get infinitely big. We probably want to
-  -- prune it when it reaches a certain length. Use some kind of deque?
-  streamInner (seen `union` items) cb cbUpdated src
+  items <- src
+  let (queue', unique) = Q.merge items queue
+  cbUpdated <- foldM cb cbInit unique
+  streamInner queue' cb cbUpdated src
 
 -- | If you have an action which generates a list of things (with the type
 -- @RedditT [a]@), then "stream" turns this an action which
@@ -609,9 +617,9 @@ streamInner seen cb cbInit src = do
 -- stream has previously thrown up.
 --
 -- You can adjust the frequency with which the stream is refreshed, and
--- secondly, the number of items fetched on each request. These can be changed
--- using the 'streamDelay' field of the 'RedditEnv' you are using.
--- The 'Control.Monad.Reader.local' function is particularly helpful here.
+-- secondly, the number of \'seen\' items which are stored in memory. These can
+-- be changed using the 'streamDelay' and 'streamStorageSize' fields of the
+-- 'RedditEnv' you are using, e.g. using 'Control.Monad.Reader.local'.
 stream ::
   (Eq a) =>
   -- | A callback function to execute on all things found.
@@ -622,8 +630,9 @@ stream ::
   RedditT [a] ->
   RedditT ()
 stream cb cbInit src = do
+  n <- asks streamStorageSize
   first <- src
-  streamInner first cb cbInit src
+  streamInner (Q.fromList n first) cb cbInit src
 
 -- | @stream'@ is a simpler version of @stream@, which accepts a callback that
 -- doesn't use state.
@@ -647,9 +656,14 @@ postStream ::
   RedditT ()
 postStream cb cbInit sr = stream cb cbInit (subredditPosts 100 sr New)
 
--- | Get a stream of new comments on a subreddit. Note that this also includes
--- edited comments (that's not a design choice, it's just how the Reddit API
--- works).
+-- | Get a stream of new comments on a subreddit.
+--
+-- Note that this also includes edited comments (that's not a design choice,
+-- it's just how the Reddit API works). If you want to only act on newly posted
+-- comments, you can check the 'editedTime' field of the comment in your
+-- callback function; however, note that this will still show up as
+-- @NeverEdited@ for comments edited within the 3-minute grace period (i.e.
+-- \'ninja edits\').
 commentStream ::
   -- | Callback function.
   (state -> Comment -> RedditT state) ->
