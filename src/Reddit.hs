@@ -87,15 +87,18 @@ module Reddit
     --
     -- $awards
     Reddit.Types.Award (..),
+    -- | #streams#
 
     -- * Streams
-
-    --
     -- $streams
     stream,
     stream',
     postStream,
     commentStream,
+    -- | #listings#
+
+    -- * Listings
+    -- $listings
 
     -- * Other types
     Reddit.Types.ID (..),
@@ -260,7 +263,32 @@ checkTokenValidity = do
     (liftIO (throwIO TokenExpiredException))
 
 -- $listings
--- Listings are not exposed to the user. There is no real reason why
+-- Listings are Reddit's way of paginating things (i.e. comments, posts, etc.).
+-- When you ask for a series of things, the Reddit API really returns a listing
+-- of things, from which the posts themselves must be extracted.
+--
+-- This library abstracts this away from you completely, so you should not have
+-- to deal with any listings themselves. However, there's a good reason to know
+-- about how listings work, namely efficiency.
+--
+-- When making a single HTTP request to the Reddit API, only 100 things can be
+-- returned in a single listing. So, if you want to fetch the first 200 comments
+-- of a user, with @'accountComments' 200 "username"@, then we need to perform
+-- two HTTP requests.
+--
+-- This goes up to a maximum of 1000, after which Reddit refuses to return any
+-- more results. So, even if you ask for 1500 comments, you'll only get the
+-- first 1000. Also, if you ask for 1000 comments and the user has only ever
+-- commented 500 times, you'll get all 500.
+--
+-- This leads us to three guidelines for choosing the @Int@ parameter for
+-- functions such as 'accountComments', 'accountPosts', etc.:
+--
+-- 1. Keep it to 100 or lower if you want it to complete within a single
+--    request. In particular, you probably don't want to make this greater than
+--    100 if you're creating a [stream](#streams).
+-- 2. If you just want 'as many as possible', put 1000.
+-- 3. Don't bother putting anything larger than 1000.
 
 -- | Internal function to fetch n <= 100 results from a given URI. Assumes that
 -- the listing will be homogeneous.
@@ -269,7 +297,7 @@ checkTokenValidity = do
 -- parameters.
 getListingSingle ::
   (HasID t, FromJSON t) =>
-  -- | The number of things to ask for. Must be 100 or fewer.
+  -- | The number of things to ask for. Should really be 100 or fewer.
   Int ->
   -- | The value of @after@ to pass in the query.
   Maybe Text ->
@@ -350,7 +378,10 @@ getThingByID its_id = do
     [t] -> pure t
     _ -> fail "Reddit response had incorrect length"
 
--- | Fetch a list of comments by their IDs. More efficient than @map getCmment@
+-- $comments
+-- Comments.
+
+-- | Fetch a list of comments by their IDs. More efficient than @map getComment@
 -- because it only makes one API call.
 --
 -- TODO: This uses the @\/api\/info@ endpoint, which (apparently) provides
@@ -384,10 +415,8 @@ addNewComment x body = do
 
 -- | Get the most recent comments by a user.
 accountComments ::
-  -- | Number of comments to fetch. Up to 100 can be fetched in a single
-  -- request; if this number is more than 100, multiple requests will be used.
-  -- The number of returned results is capped at 1000 (this is a limitation of
-  -- Reddit's API).
+  -- | Number of comments to fetch. See [the listings section](#listings) for
+  -- an explanation of this parameter.
   Int ->
   -- | Username (without the @\/u\/@).
   Text ->
@@ -398,10 +427,8 @@ accountComments n uname =
 
 -- | Get the most recent comments on a subreddit.
 subredditComments ::
-  -- | Number of comments to fetch. Up to 100 can be fetched in a single
-  -- request; if this number is more than 100, multiple requests will be used.
-  -- The number of returned results is capped at 1000 (this is a limitation of
-  -- Reddit's API).
+  -- | Number of comments to fetch. See [the listings section](#listings) for
+  -- an explanation of this parameter.
   Int ->
   -- | Subreddit name (without the @\/r\/@).
   Text ->
@@ -455,10 +482,8 @@ getPost = getThingByID
 
 -- | Get the most recent posts by a user.
 accountPosts ::
-  -- | Number of posts to fetch. Up to 100 can be fetched in a single request;
-  -- if this number is more than 100, multiple requests will be used. The number
-  -- of returned results is capped at 1000 (this is a limitation of Reddit's
-  -- API).
+  -- | Number of posts to fetch. See [the listings section](#listings) for an
+  -- explanation of this parameter.
   Int ->
   -- | Username (without the @\/u\/@).
   Text ->
@@ -469,10 +494,8 @@ accountPosts n uname = do
 
 -- | Get the posts from the front page of a subreddit.
 subredditPosts ::
-  -- | Number of posts to fetch. Up to 100 can be fetched in a single request;
-  -- if this number is more than 100, multiple requests will be used. The number
-  -- of returned results is capped at 1000 (this is a limitation of Reddit's
-  -- API).
+  -- | Number of posts to fetch. See [the listings section](#listings) for an
+  -- explanation of this parameter.
   Int ->
   -- | Subreddit name (without the @\/r\/@).
   Text ->
@@ -574,7 +597,7 @@ streamInner seen cb cbInit src = do
   streamInner (seen `union` items) cb cbUpdated src
 
 -- | If you have an action which generates a list of things (with the type
--- @RedditT [a]@), then @stream@ turns this an action which
+-- @RedditT [a]@), then "stream" turns this an action which
 -- executes a callback function on an infinite list of things. It does so by
 -- repeatedly fetching the list of either comments or posts.
 --
@@ -584,15 +607,10 @@ streamInner seen cb cbInit src = do
 -- have been seen so far, or perform actions conditionally based on what the
 -- stream has previously thrown up.
 --
--- You can adjust two things here: firstly, the frequency with which the stream
--- is refreshed, and secondly, the number of items fetched on each request.
--- These can be changed using the "streamDelay" and "listingN" fields of the
--- "RedditEnv" you are using. "Control.Monad.Reader.local" is particularly
--- helpful here.
---
--- Note that "listingN" is already set to its maximum permissible value of 100
--- by default, so you can only really decrease it (e.g. for low-traffic streams
--- where you don't need to fetch too many things at once).
+-- You can adjust the frequency with which the stream is refreshed, and
+-- secondly, the number of items fetched on each request. These can be changed
+-- using the 'streamDelay' field of the 'RedditEnv' you are using.
+-- The 'Control.Monad.Reader.local' function is particularly helpful here.
 stream ::
   (Eq a) =>
   -- | A callback function to execute on all things found.
