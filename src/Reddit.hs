@@ -566,9 +566,11 @@ streamInner :: (Eq a) => [a] -> (t -> a -> RedditT t) -> t -> RedditT [a] -> Red
 streamInner seen cb cbInit src = do
   delaySeconds <- asks streamDelay
   liftIO $ threadDelay (floorDoubleInt (delaySeconds * 1000000))
-  items <- src
+  items <- reverse <$> src
   let new = items \\ seen
   cbUpdated <- foldM cb cbInit new
+  -- TODO: (seen `union` items) can get infinitely big. We probably want to
+  -- prune it when it reaches a certain length. Use some kind of deque?
   streamInner (seen `union` items) cb cbUpdated src
 
 -- | If you have an action which generates a list of things (with the type

@@ -31,11 +31,14 @@ main = do
   let showCommentInfo :: Comment -> IO ()
       showCommentInfo c = do
         putStr (show c.createdTime)
-        putStr "          "
+        putStr "  id: "
+        putStr (show c.id')
+        putStr "  "
         putStr "by /u/"
         T.putStr c.author
         T.putStrLn ""
 
   runRedditT' env $ do
-    cmts <- subredditComments 250 "pokemontrades"
-    liftIO $ mapM_ showCommentInfo cmts
+    commentStream (const $ liftIO . showCommentInfo) () "askreddit"
+    -- cmts <- subredditComments 250 "pokemontrades"
+    -- liftIO $ mapM_ showCommentInfo cmts
