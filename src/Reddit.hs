@@ -350,7 +350,8 @@ getListings size aft uri in_params = do
         Nothing -> pure first_batch -- No more stuff to get.
         Just a -> do
           remainder <- getListings (size - 100) (Just a) uri in_params
-          -- TODO: O(N^2). Bad.
+          -- This is O(N^2) and ugly, but the bottleneck here is really the HTTP
+          -- requests, so it's probably ok. Also, N is always <= 1000.
           pure (first_batch ++ remainder)
 
 -- | This is a generic function querying the /api/info endpoint.
