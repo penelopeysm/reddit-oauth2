@@ -52,8 +52,8 @@ jobs:
       - name: Build
         run: cabal build
 
-      - name: Build documentation (but not for dependencies; crypto-api keeps crashing)
-        run: cabal haddock --disable-documentation
+      - name: Build documentation (but not for dependencies; we don't upload it anyway)
+        run: cabal haddock --haddock-hyperlink-source --disable-documentation
 
       - name: Clone gh-pages branch
         uses: actions/checkout@v3
