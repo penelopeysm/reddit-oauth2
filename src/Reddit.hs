@@ -212,6 +212,8 @@ runRedditT' = flip runReaderT
 --
 -- See also: <https://github.com/reddit-archive/reddit/wiki/OAuth2-Quick-Start-Example>
 
+-- | A record containing the credentials needed to authenticate with the OAuth2
+-- API.
 data Credentials = Credentials
   { username :: Text,
     password :: Text,
@@ -291,7 +293,8 @@ checkTokenValidity = do
 -- When making a single HTTP request to the Reddit API, only 100 things can be
 -- returned in a single listing. So, if you want to fetch the first 200 comments
 -- of a user, with @'accountComments' 200 "username"@, then we need to perform
--- two HTTP requests.
+-- two HTTP requests. Of course, this library does that for you
+-- automatically—but it will take longer than you might initially expect.
 --
 -- This goes up to a maximum of 1000, after which Reddit refuses to return any
 -- more results. So, even if you ask for 1500 comments, you'll only get the
@@ -310,8 +313,8 @@ checkTokenValidity = do
 -- | Internal function to fetch n <= 100 results from a given URI. Assumes that
 -- the listing will be homogeneous.
 --
--- This assumes that the endpoint accepts the 'limit' and 'after' URL-encoded
--- parameters.
+-- This assumes that the endpoint accepts the \'limit\' and \'after\'
+-- URL-encoded parameters.
 getListingSingle ::
   (HasID t, FromJSON t) =>
   -- | The number of things to ask for. Should really be 100 or fewer.
@@ -344,13 +347,13 @@ getListingSingle size aft url in_params = do
 -- | Internal function to fetch n <= 1000 results from a given URI. Assumes that
 -- the returned listing will be homogeneous.
 --
--- This assumes that the endpoint accepts the 'count' and 'after' URL-encoded
--- parameters.
+-- This assumes that the endpoint accepts the \'count\' and \'after\'
+-- URL-encoded parameters.
 getListings ::
   (HasID t, FromJSON t) =>
   -- | The number of things to ask for. Must be 100 or fewer.
   Int ->
-  -- | The 'after'
+  -- | The value of \'after\'.
   Maybe Text ->
   -- | The URL to query
   Url 'Https ->
@@ -505,8 +508,10 @@ getAccountByName uname = do
 -- Fetch the first 25 posts from a given subreddit ordered by the
 -- @SubredditSort@ parameter.
 
+-- | The timeframe over which to get top or most controversial posts.
 data Timeframe = Hour | Day | Week | Month | Year | All
 
+-- | Sorting order for posts in a subreddit.
 data SubredditSort = Hot | New | Random | Rising | Top Timeframe | Controversial Timeframe
 
 -- | Fetch a list of posts by their IDs. More efficient than @map getPost@
@@ -745,7 +750,7 @@ postStream cb cbInit sr = stream cb cbInit (subredditPosts 100 sr New)
 --
 -- Note that this also includes edited comments (that's not a design choice,
 -- it's just how the Reddit API works). If you want to only act on newly posted
--- comments, you can check the 'editedTime' field of the comment in your
+-- comments, you can check the @editedTime@ field of the comment in your
 -- callback function; however, note that this will still show up as
 -- @NeverEdited@ for comments edited within the 3-minute grace period (i.e.
 -- \'ninja edits\').
