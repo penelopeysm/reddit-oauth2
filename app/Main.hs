@@ -19,11 +19,14 @@ getEnvAsText :: Text -> IO Text
 getEnvAsText = fmap T.pack . getEnv . T.unpack
 
 printTree :: Int -> CommentTree -> IO ()
-printTree n MoreComments = T.putStrLn $ T.replicate n " " <> "More..."
+printTree n (MoreComments chldn) =
+  T.putStrLn $
+    T.replicate n " "
+      <> "More: "
+      <> T.intercalate "," (map mkFullNameFromID chldn)
 printTree n (ActualComment c rpls) = do
   T.putStrLn $ T.replicate n " " <> mkFullName c
   mapM_ (printTree (n + 2)) rpls
-
 
 main :: IO ()
 main = do

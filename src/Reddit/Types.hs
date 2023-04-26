@@ -237,14 +237,16 @@ instance FromJSON Comment where
 -- not returned immediately by Reddit.
 data CommentTree
   = ActualComment Comment [CommentTree]
-  | MoreComments
+  | MoreComments [ID Comment]
   deriving (Show)
 
 instance FromJSON CommentTree where
   parseJSON = withObject "CommentTree" $ \o -> do
     (kind :: Text) <- o .: "kind"
     case kind of
-      "more" -> pure MoreComments
+      "more" -> do
+        ids <- o .: "data" >>= (.: "children")
+        pure $ MoreComments (map CommentID ids)
       "t1" -> do
         comment <- parseJSON (Object o)
         replies <- o .: "data" >>= (.: "replies")
