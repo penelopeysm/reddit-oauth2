@@ -16,6 +16,7 @@ module Reddit.Types
   ( ID (..),
     Listing (..),
     Comment (..),
+    CommentTree (..),
     Account (..),
     Post (..),
     Message (..),
@@ -152,8 +153,8 @@ instance FromJSON (ID Award) where
 data Listing t = Listing
   { -- | May be @None@ if there is nothing to come after it.
     after :: Maybe Text,
-    -- | The number of things contained in the listing.
-    size :: Int,
+    -- | The number of things contained in the listing. Sometimes this is null.
+    size :: Maybe Int,
     -- | The things inside it.
     contents :: [t]
   }
@@ -226,6 +227,33 @@ instance FromJSON Comment where
     createdTime <- posixSecondsToUTCTime <$> v .: "created_utc"
     editedTime <- convertEditedTime <$> v .: "edited"
     pure $ Comment {..}
+
+-- | When fetching comments on a specific post, we need a tree-like structure to
+-- account for the relationship between comments.
+--
+-- Each post is a list of top-level @CommentTree@s. Each @CommentTree@ is either
+-- a comment together with its replies, or a special @MoreComments@ value which
+-- represents the fact that a discussion continues further, but the data were
+-- not returned immediately by Reddit.
+data CommentTree
+  = ActualComment Comment [CommentTree]
+  | MoreComments
+  deriving (Show)
+
+instance FromJSON CommentTree where
+  parseJSON = withObject "CommentTree" $ \o -> do
+    (kind :: Text) <- o .: "kind"
+    case kind of
+      "more" -> pure MoreComments
+      "t1" -> do
+        comment <- parseJSON (Object o)
+        replies <- o .: "data" >>= (.: "replies")
+        case replies of
+          String "" -> pure $ ActualComment comment []
+          v' -> do
+            replies' <- contents <$> parseJSON v'
+            pure $ ActualComment comment replies'
+      s -> fail . T.unpack $ "Expected 'more' or 't1' in Listing, got " <> s
 
 -- Account
 

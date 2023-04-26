@@ -1,5 +1,5 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE OverloadedRecordDot #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module Main where
@@ -18,6 +18,13 @@ import System.IO (hFlush, stdout)
 getEnvAsText :: Text -> IO Text
 getEnvAsText = fmap T.pack . getEnv . T.unpack
 
+printTree :: Int -> CommentTree -> IO ()
+printTree n MoreComments = T.putStrLn $ T.replicate n " " <> "More..."
+printTree n (ActualComment c rpls) = do
+  T.putStrLn $ T.replicate n " " <> mkFullName c
+  mapM_ (printTree (n + 2)) rpls
+
+
 main :: IO ()
 main = do
   username <- getEnvAsText "REDDIT_USERNAME"
@@ -31,18 +38,7 @@ main = do
 
   let env = defEnv {streamStorageSize = 150}
 
-  let showCommentInfo :: Comment -> IO ()
-      showCommentInfo c = do
-        putStr (show c.createdTime)
-        putStr " "
-        putStr (show c.id')
-        putStr " "
-        putStr (show c.editedTime)
-        putStr " /u/"
-        T.putStrLn c.author
-        hFlush stdout
-
   runRedditT' env $ do
-    commentStream (const $ liftIO . showCommentInfo) () "askreddit"
-    -- cmts <- subredditComments 250 "pokemontrades"
-    -- liftIO $ mapM_ showCommentInfo cmts
+    (post, cmts) <- getPostAndComments (PostID "12wunr9")
+    liftIO $ print $ post.title
+    liftIO $ mapM_ (printTree 0) cmts

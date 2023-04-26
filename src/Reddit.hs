@@ -40,11 +40,13 @@ module Reddit
     --
     -- $comments
     Reddit.Types.Comment (..),
+    Reddit.Types.CommentTree (..),
     getComments,
     getComment,
     addNewComment,
     accountComments,
     subredditComments,
+    postComments,
 
     -- * Accounts (i.e. users)
 
@@ -62,6 +64,7 @@ module Reddit
     Reddit.Types.Post (..),
     getPosts,
     getPost,
+    getPostAndComments,
     accountPosts,
     Timeframe (..),
     SubredditSort (..),
@@ -114,6 +117,7 @@ import Control.Exception (Exception (..), throwIO)
 import Control.Monad (foldM)
 import Control.Monad.Reader
 import Data.Aeson
+import Data.Aeson.Types (Value (..))
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B
@@ -127,8 +131,8 @@ import Data.Time.Clock
 import GHC.Float.RealFracMethods (floorDoubleInt)
 import Network.HTTP.Req
 import qualified Reddit.Auth as Auth
-import Reddit.Types
 import qualified Reddit.Queue as Q
+import Reddit.Types
 
 -- | Everything required to query the Reddit API.
 --
@@ -446,6 +450,26 @@ subredditComments ::
 subredditComments n sr =
   let uri = https oauth /: "r" /: sr /: "comments"
    in getListings n Nothing uri mempty
+
+-- | Retrieve a post, together with a tree of comments on it.
+getPostAndComments :: ID Post -> RedditT (Post, [CommentTree])
+getPostAndComments (PostID p) = do
+  env <- ask
+  respBody <- liftIO $ runReq defaultHttpConfig $ do
+    let uri = https oauth /: "comments" /: p
+    response <- req GET uri NoReqBody lbsResponse (withUAToken env)
+    pure (responseBody response)
+  -- Reddit returns a JSON array where the first item is a listing containing
+  -- the post, and the second a listing containing the comments. Thankfully, the
+  -- default implementation for FromJSON (a, b) does exactly this.
+  (postListing, cmtListing) <- throwDecode respBody
+  case contents postListing of
+    [p] -> pure (p, contents cmtListing)
+    _ -> fail "Expected one post, got many"
+
+-- | Retrieve the comments on a post.
+postComments :: ID Post -> RedditT [CommentTree]
+postComments p = snd <$> getPostAndComments p
 
 -- $accounts
 -- Accounts.
