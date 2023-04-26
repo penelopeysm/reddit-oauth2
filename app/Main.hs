@@ -37,11 +37,7 @@ main = do
   let userAgent = "github:penelopeysm/reddit-oauth2 by /u/is_a_togekiss"
   let creds = Credentials {..}
 
-  defEnv <- withCredentials creds userAgent
-
-  let env = defEnv {streamStorageSize = 150}
+  env <- withCredentials creds userAgent
 
   runRedditT' env $ do
-    (post, cmts) <- getPostAndComments (PostID "12wunr9")
-    liftIO $ print $ post.title
-    liftIO $ mapM_ (printTree 0) cmts
+    edit (CommentID "je1y1fw") ("Comment *edited* by script")

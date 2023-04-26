@@ -69,6 +69,10 @@ module Reddit
     Timeframe (..),
     SubredditSort (..),
     subredditPosts,
+    edit,
+    delete,
+    remove,
+    approve,
 
     -- * Messages
 
@@ -554,6 +558,63 @@ subredditPosts n sr sort = do
         Controversial tf -> ("controversial", "t" =: timeframe_text tf)
   let uri = https oauth /: "r" /: sr /: endpoint
    in getListings n Nothing uri tf_params
+
+-- | Edit the contents of a comment or a text post. You must be authenticated as
+-- the person who posted it.
+edit :: (CanCommentOn a) => ID a -> Text -> RedditT ()
+edit id newBody = do
+  let fullName = mkFullNameFromID id
+  env <- ask
+  liftIO $ runReq defaultHttpConfig $ do
+    let uri = https oauth /: "api" /: "editusertext"
+    let req_params = withUAToken env
+    let body_params = "thing_id" =: fullName <> "text" =: newBody
+    void $ req POST uri (ReqBodyUrlEnc body_params) ignoreResponse req_params
+
+-- | Delete a post or a comment. You must be authenticated as the person who
+-- posted it.
+--
+-- If you want to remove a post or a comment on a subreddit you moderate, use
+-- 'remove' instead.
+delete :: (CanCommentOn a) => ID a -> RedditT ()
+delete id = do
+  let fullName = mkFullNameFromID id
+  env <- ask
+  liftIO $ runReq defaultHttpConfig $ do
+    let uri = https oauth /: "api" /: "del"
+    let req_params = withUAToken env
+    let body_params = "id" =: fullName
+    void $ req POST uri (ReqBodyUrlEnc body_params) ignoreResponse req_params
+
+-- | As a moderator, remove a post or a comment. This is the inverse of
+-- 'approve'.
+remove ::
+  (CanCommentOn a) =>
+  ID a ->
+  -- | Whether the thing being removed is spam.
+  Bool ->
+  RedditT ()
+remove id isSpam = do
+  let fullName = mkFullNameFromID id
+  let spam :: Text = if isSpam then "true" else "false"
+  env <- ask
+  liftIO $ runReq defaultHttpConfig $ do
+    let uri = https oauth /: "api" /: "remove"
+    let req_params = withUAToken env
+    let body_params = "id" =: fullName <> "spam" =: spam
+    void $ req POST uri (ReqBodyUrlEnc body_params) ignoreResponse req_params
+
+-- | As a moderator, approve a post or a comment. This is the inverse of
+-- 'remove'.
+approve :: (CanCommentOn a) => ID a -> RedditT ()
+approve id = do
+  let fullName = mkFullNameFromID id
+  env <- ask
+  liftIO $ runReq defaultHttpConfig $ do
+    let uri = https oauth /: "api" /: "approve"
+    let req_params = withUAToken env
+    let body_params = "id" =: fullName
+    void $ req POST uri (ReqBodyUrlEnc body_params) ignoreResponse req_params
 
 -- $messages
 --
