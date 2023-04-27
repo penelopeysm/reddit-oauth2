@@ -25,6 +25,8 @@ module Reddit
     RedditT (..),
     runRedditT,
     runRedditT',
+    runRedditTCleanup,
+    runRedditTCleanup',
     RedditEnv,
     streamDelay,
     streamStorageSize,
@@ -33,7 +35,8 @@ module Reddit
     -- * Authentication with account credentials
     -- $credentials
     Credentials (..),
-    withCredentials,
+    authenticate,
+    revokeToken,
 
     -- * Comments
 
@@ -117,7 +120,7 @@ module Reddit
 where
 
 import Control.Concurrent (threadDelay)
-import Control.Exception (Exception (..), throwIO)
+import Control.Exception (Exception (..), finally, throwIO)
 import Control.Monad (foldM)
 import Control.Monad.Reader
 import Data.Aeson
@@ -150,7 +153,7 @@ import Reddit.Types
 -- things like:
 --
 -- @
---    env <- 'withCredentials' ...
+--    env <- 'authenticate' ...
 --    let modifiedEnv = env {'streamDelay' = 2}
 -- @
 --
@@ -179,14 +182,27 @@ data RedditEnv = RedditEnv
 -- | The type of a Reddit computation.
 type RedditT = ReaderT RedditEnv IO
 
--- | Run a Reddit computation using an @env@ value obtained through
--- authorisation (see [Authentication](#credentials)).
+-- | Run a Reddit computation using a @RedditEnv@ value obtained through
+-- authentication (see [Authentication](#credentials)).
 runRedditT :: RedditT a -> RedditEnv -> IO a
 runRedditT = runReaderT
 
 -- | @runRedditT'@ is @flip 'runRedditT'@ and is slightly more ergonomic.
 runRedditT' :: RedditEnv -> RedditT a -> IO a
 runRedditT' = flip runReaderT
+
+-- | Run a Reddit computation, and additionally clean up the @RedditEnv@ value
+-- by revoking the token after the computation finishes.
+--
+-- Doing this is generally good behaviour. Alternatively, you can manually use
+-- 'revokeToken'.
+runRedditTCleanup :: RedditT a -> RedditEnv -> IO a
+runRedditTCleanup actn env =
+  finally (runRedditT actn env) (revokeToken env)
+
+-- | Same as @flip 'runRedditTCleanup'@.
+runRedditTCleanup' :: RedditEnv -> RedditT a -> IO a
+runRedditTCleanup' = flip runRedditTCleanup
 
 -- $credentials
 --
@@ -222,16 +238,17 @@ data Credentials = Credentials
   }
   deriving (Show)
 
--- | Exchange user account credentials for a 'RedditEnv', which is required to
--- run all Reddit queries.
-withCredentials ::
+-- | Authenticate using credentials, which gives you a token contained inside a
+-- 'RedditEnv'. This @RedditEnv@ value is required to perform all Reddit
+-- queries.
+authenticate ::
   Credentials ->
   -- | Your user-agent. [Reddit
   -- says](https://github.com/reddit-archive/reddit/wiki/API) you should use a
   -- unique and identifiable user-agent.
   Text ->
   IO RedditEnv
-withCredentials creds ua = do
+authenticate creds ua = do
   (tokenInternal :: Auth.TokenInternal) <- runReq defaultHttpConfig $ do
     let uri = https "www.reddit.com" /: "api" /: "v1" /: "access_token"
     let body =
@@ -264,8 +281,23 @@ withCredentials creds ua = do
 oauth :: Text
 oauth = "oauth.reddit.com"
 
+-- | Convenience function to generate HTTP headers required for basic
+-- authentication.
 withUAToken :: RedditEnv -> Option 'Https
 withUAToken env = header "user-agent" (userAgent env) <> oAuth2Bearer (token env)
+
+-- | Revoke an access token contained in a @RedditEnv@, rendering it unusable.
+-- If you want to continue performing queries after this, you will need to
+-- generate a new @RedditEnv@.
+revokeToken :: RedditEnv -> IO ()
+revokeToken env = do
+  runReq defaultHttpConfig $ do
+    let uri = https "www.reddit.com" /: "api" /: "v1" /: "revoke_token"
+    let req_params = withUAToken env
+    let body_params =
+          "token" =: TE.decodeUtf8 (token env)
+            <> "token_type_hint" =: TE.decodeUtf8 (tokenType env)
+    void $ req POST uri (ReqBodyUrlEnc body_params) ignoreResponse req_params
 
 data RedditException = TokenExpiredException deriving (Show)
 

@@ -75,7 +75,7 @@ main = do
             clientSecret = clientSecret
           }
   -- Get the RedditEnv term needed to run Reddit queries.
-  env <- withCredentials creds userAgent
+  env <- authenticate creds userAgent
 
   -- Run the bot, refreshing every 5 seconds (the default).
   runRedditT' env $ do

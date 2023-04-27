@@ -4,6 +4,7 @@
 
 module Main where
 
+import Control.Concurrent (threadDelay)
 import Control.Monad.Reader
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B
@@ -37,7 +38,10 @@ main = do
   let userAgent = "github:penelopeysm/reddit-oauth2 by /u/is_a_togekiss"
   let creds = Credentials {..}
 
-  env <- withCredentials creds userAgent
+  env <- authenticate creds userAgent
 
   runRedditT' env $ do
-    edit (CommentID "je1y1fw") ("Comment *edited* by script")
+    edit (CommentID "jhuuvw7") "Comment *edited* by script"
+    -- Need a delay between edits, otherwise we get rate limited...?
+    liftIO $ threadDelay 5000000
+    edit (CommentID "jhuuw83") "Comment *edited* by script 2"
