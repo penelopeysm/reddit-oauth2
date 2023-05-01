@@ -13,7 +13,8 @@
 -- the JSON response that Reddit gives. If there is a particular piece of
 -- information you need, please feel free to make an issue or PR.
 module Reddit.Types
-  ( ID (..),
+  ( HiddenText (..),
+    ID (..),
     Listing (..),
     Comment (..),
     CommentTree (..),
@@ -35,6 +36,12 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.Clock
 import Data.Time.Clock.POSIX (posixSecondsToUTCTime)
+
+-- | Same as @Data.Text.Text@, but has a Show instance where it's not printed.
+newtype HiddenText = HiddenText {getHiddenText :: Text} deriving (Eq, Ord)
+
+instance Show HiddenText where
+  show (HiddenText _) = "<redacted>"
 
 redditURL :: Text
 redditURL = "https://reddit.com"
