@@ -41,7 +41,6 @@ main = do
   env <- authenticate creds userAgent
 
   runRedditT' env $ do
-    edit (CommentID "jhuuvw7") "Comment *edited* by script"
-    -- Need a delay between edits, otherwise we get rate limited...?
-    liftIO $ threadDelay 5000000
-    edit (CommentID "jhuuw83") "Comment *edited* by script 2"
+    (post, cmts) <- getPostAndComments (PostID "12wunr9")
+    liftIO $ print $ post.title
+    liftIO $ mapM_ (printTree 0) cmts
