@@ -241,7 +241,8 @@ authenticate ::
   Text ->
   IO RedditEnv
 authenticate creds ua = do
-  tokenRef <- Auth.getToken creds >>= R.newIORef
+  let uaBS = TE.encodeUtf8 ua
+  tokenRef <- Auth.getToken creds uaBS >>= R.newIORef
   currentTime <- getCurrentTime
   pure $
     RedditEnv
@@ -250,7 +251,7 @@ authenticate creds ua = do
         credsPassword = HiddenText creds.password,
         credsClientID = creds.clientID,
         credsClientSecret = HiddenText creds.clientSecret,
-        userAgent = TE.encodeUtf8 ua,
+        userAgent = uaBS,
         streamDelay = 5,
         streamStorageSize = 250
       }
@@ -267,7 +268,7 @@ reauthenticate env = do
             clientID = env.credsClientID,
             clientSecret = getHiddenText env.credsClientSecret
           }
-  token <- Auth.getToken creds
+  token <- Auth.getToken creds env.userAgent
   R.writeIORef env.token token
 
 -- | Perform a RedditT action, but before running it, check the validity of the

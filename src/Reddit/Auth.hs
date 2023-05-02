@@ -6,6 +6,7 @@ import Data.Text (Text)
 import qualified Data.Text.Encoding as TE
 import Data.Time.Clock
 import Network.HTTP.Req
+import Reddit.Types
 
 -- | A record containing the credentials needed to authenticate with the OAuth2
 -- API.
@@ -15,7 +16,6 @@ data Credentials = Credentials
     clientID :: Text,
     clientSecret :: Text
   }
-  deriving (Show)
 
 -- * Access tokens
 
@@ -41,8 +41,8 @@ instance FromJSON TokenInternal where
         .: "scope"
 
 -- | Obtain a raw token using credentials.
-getTokenInternal :: Credentials -> IO TokenInternal
-getTokenInternal creds = runReq defaultHttpConfig $ do
+getTokenInternal :: Credentials -> ByteString -> IO TokenInternal
+getTokenInternal creds ua = runReq defaultHttpConfig $ do
   let uri = https "www.reddit.com" /: "api" /: "v1" /: "access_token"
   let body =
         ReqBodyUrlEnc
@@ -53,8 +53,10 @@ getTokenInternal creds = runReq defaultHttpConfig $ do
               <> "password"
                 =: creds.password
           )
-  let options = basicAuth (TE.encodeUtf8 (clientID creds)) (TE.encodeUtf8 (clientSecret creds))
-  response <- req POST uri body lbsResponse options
+  let req_params =
+        header "user-agent" ua
+          <> basicAuth (TE.encodeUtf8 (clientID creds)) (TE.encodeUtf8 (clientSecret creds))
+  response <- req POST uri body lbsResponse req_params
   throwDecode (responseBody response)
 
 -- | A parsed value of a Reddit access token.
@@ -79,5 +81,5 @@ parseToken tokenInternal = do
         expires_at = expires_at
       }
 
-getToken :: Credentials -> IO Token
-getToken creds = getTokenInternal creds >>= parseToken
+getToken :: Credentials -> ByteString -> IO Token
+getToken creds ua = getTokenInternal creds ua >>= parseToken
