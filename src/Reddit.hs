@@ -243,7 +243,6 @@ authenticate ::
 authenticate creds ua = do
   let uaBS = TE.encodeUtf8 ua
   tokenRef <- Auth.getToken creds uaBS >>= R.newIORef
-  currentTime <- getCurrentTime
   pure $
     RedditEnv
       { token = tokenRef,
