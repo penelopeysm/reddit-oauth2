@@ -41,6 +41,4 @@ main = do
   env <- authenticate creds userAgent
 
   runRedditT' env $ do
-    (post, cmts) <- getPostAndComments (PostID "12wunr9")
-    liftIO $ print $ post.title
-    liftIO $ mapM_ (printTree 0) cmts
+    commentStream defaultStreamSettings (\_ c -> liftIO $ T.putStrLn c.author) () "pokemontrades"
