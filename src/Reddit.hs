@@ -28,8 +28,6 @@ module Reddit
     runRedditTCleanup,
     runRedditTCleanup',
     RedditEnv,
-    streamDelay,
-    streamStorageSize,
     -- | #credentials#
 
     -- * Authentication with account credentials
@@ -102,6 +100,8 @@ module Reddit
 
     -- * Streams
     -- $streams
+    StreamSettings (..),
+    defaultStreamSettings,
     stream,
     stream',
     postStream,
@@ -142,43 +142,19 @@ import qualified Reddit.Auth as Auth
 import qualified Reddit.Queue as Q
 import Reddit.Types
 
--- | Everything required to query the Reddit API.
---
--- This is a record type which includes things that you /might/ want to change
--- (e.g. configuration variables), as well as some things that you really
--- /should not/ change (e.g. the access token). Because of this, not all field
--- accessors are exported; but due to [a bug in
--- Haddock](https://github.com/haskell/haddock/issues/456), the ones that are
--- exported are documented as separate functions instead of \'standalone\' field
--- accessors. However, they /are/ still field accessors, so you can still do
--- things like:
---
--- @
---    env <- 'authenticate' ...
---    let modifiedEnv = env {'streamDelay' = 2}
--- @
---
--- To be clear, the exported field accessors are: 'streamDelay' and
--- 'streamStorageSize'.
+-- | Everything required to query the Reddit API. In principle, you should not
+-- need to edit anything here, so the field accessors are not exported.
 data RedditEnv = RedditEnv
-  { -- | OAuth2 token contents. Don't modify these.
+  { -- | OAuth2 token contents.
     token :: R.IORef Auth.Token,
-    -- | Credentials used to log in. Don't modify these either.
+    -- | Credentials used to log in. Must be stored to allow for
+    -- reauthentication if and when the token expires.
     credsUsername :: Text,
     credsPassword :: HiddenText,
     credsClientID :: Text,
     credsClientSecret :: HiddenText,
     -- | User-agent. Should be unique.
-    userAgent :: ByteString,
-    -- | Delay (in seconds) between successive requests when using
-    -- [streams](#streams). Reddit says you should not be querying more than 60
-    -- times in a minute, so this should not go below 1. Defaults to 5.
-    streamDelay :: Double,
-    -- | Number of \'seen\' items to keep in memory when running a stream. If
-    -- you are requesting N items at a go, there doesn't appear to be much point
-    -- in making this larger than N. N should probably be 100, but this defaults
-    -- to 250 to be safe, because I'm not sure if there are weird edge cases.
-    streamStorageSize :: Int
+    userAgent :: ByteString
   }
 
 -- | The type of a Reddit computation.
@@ -194,7 +170,7 @@ runRedditT' :: RedditEnv -> RedditT a -> IO a
 runRedditT' = flip runReaderT
 
 -- | Run a Reddit computation, and additionally clean up the @RedditEnv@ value
--- by revoking the token after the computation finishes.
+-- by revoking the active access token after the computation finishes.
 --
 -- Doing this is generally good behaviour. Alternatively, you can manually use
 -- 'revokeToken'.
@@ -250,9 +226,7 @@ authenticate creds ua = do
         credsPassword = HiddenText creds.password,
         credsClientID = creds.clientID,
         credsClientSecret = HiddenText creds.clientSecret,
-        userAgent = uaBS,
-        streamDelay = 5,
-        streamStorageSize = 250
+        userAgent = uaBS
       }
 
 -- | This function is not exported, but is used when the access token has to be
@@ -715,20 +689,41 @@ getSubredditByName s_name = do
 -- tasks, usually iterating over a list of most recent posts / comments on a
 -- subreddit.
 --
--- The most general function is @stream@; a usage example is provided at the top
--- of this file. @postStream@ and @commentStream@ are specialised versions which
--- save a tiny bit of typing.
+-- The most general function is @stream@; a usage example is provided in the
+-- 'Reddit.Example' module. @postStream@ and @commentStream@ are specialised
+-- versions which save a tiny bit of typing.
+
+-- | Available configuration variables for streams.
+data StreamSettings = StreamSettings
+  { -- | Delay (in seconds) between successive requests when using
+    -- [streams](#streams). Reddit says you should not be querying more than 60
+    -- times in a minute, so this should not go below 1. Defaults to 5.
+    delay :: Double,
+    -- | Number of \'seen\' items to keep in memory when running a stream. If
+    -- you are requesting N items at a go, there doesn't appear to be much point
+    -- in making this larger than N. N should probably be 100, but this defaults
+    -- to 250 to be safe, because I'm not sure if there are weird edge cases.
+    storageSize :: Int
+  }
+
+-- | Default stream settings. See 'StreamSettings' for the specification of
+-- these values.
+defaultStreamSettings :: StreamSettings
+defaultStreamSettings =
+  StreamSettings
+    { delay = 5,
+      storageSize = 250
+    }
 
 -- Helper function.
-streamInner :: (Eq a) => Q.Queue a -> (t -> a -> RedditT t) -> t -> RedditT [a] -> RedditT ()
-streamInner queue cb cbInit src = do
+streamInner :: (Eq a) => StreamSettings -> Q.Queue a -> (t -> a -> RedditT t) -> t -> RedditT [a] -> RedditT ()
+streamInner settings queue cb cbInit src = do
   -- `queue` essentially contains the last N items we've seen.
-  delaySeconds <- asks streamDelay
-  liftIO $ threadDelay (floorDoubleInt (delaySeconds * 1000000))
+  liftIO $ threadDelay (floorDoubleInt (settings.delay * 1000000))
   items <- src
   let (queue', unique) = Q.merge items queue
   cbUpdated <- foldM cb cbInit unique
-  streamInner queue' cb cbUpdated src
+  streamInner settings queue' cb cbUpdated src
 
 -- | If you have an action which generates a list of things (with the type
 -- @RedditT [a]@), then "stream" turns this an action which
@@ -743,10 +738,12 @@ streamInner queue cb cbInit src = do
 --
 -- You can adjust the frequency with which the stream is refreshed, and
 -- secondly, the number of \'seen\' items which are stored in memory. These can
--- be changed using the 'streamDelay' and 'streamStorageSize' fields of the
--- 'RedditEnv' you are using, e.g. using 'Control.Monad.Reader.local'.
+-- be changed using the 'delay' and 'storageSize' fields in the
+-- 'StreamSettings' used.
 stream ::
   (Eq a) =>
+  -- | Settings.
+  StreamSettings ->
   -- | A callback function to execute on all things found.
   (state -> a -> RedditT state) ->
   -- | The initial state for the callback function.
@@ -754,24 +751,27 @@ stream ::
   -- | The source of things to iterate over.
   RedditT [a] ->
   RedditT ()
-stream cb cbInit src = do
-  n <- asks streamStorageSize
+stream settings cb cbInit src = do
   first <- src
-  streamInner (Q.fromList n first) cb cbInit src
+  streamInner settings (Q.fromList settings.storageSize first) cb cbInit src
 
 -- | @stream'@ is a simpler version of @stream@, which accepts a callback that
 -- doesn't use state.
 stream' ::
   (Eq a) =>
-  -- | Whether to ignore the first request.
+  -- | Settings.
+  StreamSettings ->
+  -- | A simple callback function which iterates over all things seen.
   (a -> RedditT ()) ->
   -- | The source of things to iterate over.
   RedditT [a] ->
   RedditT ()
-stream' cb' = stream (const cb') ()
+stream' settings cb' = stream settings (const cb') ()
 
 -- | Get a stream of new posts on a subreddit.
 postStream ::
+  -- | Settings.
+  StreamSettings ->
   -- | Callback function.
   (state -> Post -> RedditT state) ->
   -- | Initial state for callback.
@@ -779,7 +779,7 @@ postStream ::
   -- | Subreddit name (without the @\/r\/@).
   Text ->
   RedditT ()
-postStream cb cbInit sr = stream cb cbInit (subredditPosts 100 sr New)
+postStream settings cb cbInit sr = stream settings cb cbInit (subredditPosts 100 sr New)
 
 -- | Get a stream of new comments on a subreddit.
 --
@@ -790,6 +790,8 @@ postStream cb cbInit sr = stream cb cbInit (subredditPosts 100 sr New)
 -- @NeverEdited@ for comments edited within the 3-minute grace period (i.e.
 -- \'ninja edits\').
 commentStream ::
+  -- | Settings.
+  StreamSettings ->
   -- | Callback function.
   (state -> Comment -> RedditT state) ->
   -- | Initial state for callback.
@@ -797,4 +799,4 @@ commentStream ::
   -- | Subreddit name (without the @\/r\/@).
   Text ->
   RedditT ()
-commentStream cb cbInit sr = stream cb cbInit (subredditComments 100 sr)
+commentStream settings cb cbInit sr = stream settings cb cbInit (subredditComments 100 sr)
