@@ -1,4 +1,4 @@
-module Reddit.Auth where
+module Reddit.Auth (Credentials (..), Token (..), getToken) where
 
 import Data.Aeson
 import Data.ByteString (ByteString)
@@ -6,10 +6,20 @@ import Data.Text (Text)
 import qualified Data.Text.Encoding as TE
 import Data.Time.Clock
 import Network.HTTP.Req
+import Reddit.Types
 
--- | Access tokens
+-- | A record containing the credentials needed to authenticate with the OAuth2
+-- API.
+data Credentials = Credentials
+  { username :: Text,
+    password :: Text,
+    clientID :: Text,
+    clientSecret :: Text
+  }
 
--- | The raw JSON representation of an access token as returned by Reddit.
+-- * Access tokens
+
+-- | The raw JSON representation of an access token, as returned by Reddit.
 data TokenInternal = TokenInternal
   { _access_token :: Text,
     _token_type :: Text,
@@ -22,13 +32,32 @@ instance FromJSON TokenInternal where
   parseJSON (Object v) =
     TokenInternal
       <$> v
-      .: "access_token"
+        .: "access_token"
       <*> v
-      .: "token_type"
+        .: "token_type"
       <*> v
-      .: "expires_in"
+        .: "expires_in"
       <*> v
-      .: "scope"
+        .: "scope"
+
+-- | Obtain a raw token using credentials.
+getTokenInternal :: Credentials -> ByteString -> IO TokenInternal
+getTokenInternal creds ua = runReq defaultHttpConfig $ do
+  let uri = https "www.reddit.com" /: "api" /: "v1" /: "access_token"
+  let body =
+        ReqBodyUrlEnc
+          ( "grant_type"
+              =: ("password" :: Text)
+              <> "username"
+                =: creds.username
+              <> "password"
+                =: creds.password
+          )
+  let req_params =
+        header "user-agent" ua
+          <> basicAuth (TE.encodeUtf8 (clientID creds)) (TE.encodeUtf8 (clientSecret creds))
+  response <- req POST uri body lbsResponse req_params
+  throwDecode (responseBody response)
 
 -- | A parsed value of a Reddit access token.
 data Token = Token
@@ -39,16 +68,18 @@ data Token = Token
   }
   deriving (Show)
 
--- | Convert the raw JSON returned into a parsed token.
-convertToken :: TokenInternal -> IO Token
-convertToken t = do
+parseToken :: TokenInternal -> IO Token
+parseToken tokenInternal = do
   currentTime <- getCurrentTime
-  let seconds = secondsToNominalDiffTime . realToFrac $ _expires_in t
+  let seconds = secondsToNominalDiffTime . realToFrac $ tokenInternal._expires_in
   let expires_at = addUTCTime seconds currentTime
   pure $
     Token
-      { token = TE.encodeUtf8 (_access_token t),
-        token_type = TE.encodeUtf8 (_token_type t),
-        scope = TE.encodeUtf8 (_scope t),
+      { token = TE.encodeUtf8 tokenInternal._access_token,
+        token_type = TE.encodeUtf8 tokenInternal._token_type,
+        scope = TE.encodeUtf8 tokenInternal._scope,
         expires_at = expires_at
       }
+
+getToken :: Credentials -> ByteString -> IO Token
+getToken creds ua = getTokenInternal creds ua >>= parseToken

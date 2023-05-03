@@ -34,7 +34,7 @@ module Reddit
 
     -- * Authentication with account credentials
     -- $credentials
-    Credentials (..),
+    Auth.Credentials (..),
     authenticate,
     revokeToken,
 
@@ -129,6 +129,7 @@ import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Lazy.Char8 as BSLC
+import qualified Data.IORef as R
 import Data.List (union, (\\))
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -161,10 +162,12 @@ import Reddit.Types
 -- 'streamStorageSize'.
 data RedditEnv = RedditEnv
   { -- | OAuth2 token contents. Don't modify these.
-    token :: ByteString,
-    tokenType :: ByteString,
-    tokenExpiresAt :: UTCTime,
-    tokenScope :: ByteString,
+    token :: R.IORef Auth.Token,
+    -- | Credentials used to log in. Don't modify these either.
+    credsUsername :: Text,
+    credsPassword :: HiddenText,
+    credsClientID :: Text,
+    credsClientSecret :: HiddenText,
     -- | User-agent. Should be unique.
     userAgent :: ByteString,
     -- | Delay (in seconds) between successive requests when using
@@ -177,7 +180,6 @@ data RedditEnv = RedditEnv
     -- to 250 to be safe, because I'm not sure if there are weird edge cases.
     streamStorageSize :: Int
   }
-  deriving (Show)
 
 -- | The type of a Reddit computation.
 type RedditT = ReaderT RedditEnv IO
@@ -228,90 +230,86 @@ runRedditTCleanup' = flip runRedditTCleanup
 --
 -- See also: <https://github.com/reddit-archive/reddit/wiki/OAuth2-Quick-Start-Example>
 
--- | A record containing the credentials needed to authenticate with the OAuth2
--- API.
-data Credentials = Credentials
-  { username :: Text,
-    password :: Text,
-    clientID :: Text,
-    clientSecret :: Text
-  }
-  deriving (Show)
-
 -- | Authenticate using credentials, which gives you a token contained inside a
 -- 'RedditEnv'. This @RedditEnv@ value is required to perform all Reddit
 -- queries.
 authenticate ::
-  Credentials ->
+  Auth.Credentials ->
   -- | Your user-agent. [Reddit
   -- says](https://github.com/reddit-archive/reddit/wiki/API) you should use a
   -- unique and identifiable user-agent.
   Text ->
   IO RedditEnv
 authenticate creds ua = do
-  (tokenInternal :: Auth.TokenInternal) <- runReq defaultHttpConfig $ do
-    let uri = https "www.reddit.com" /: "api" /: "v1" /: "access_token"
-    let body =
-          ReqBodyUrlEnc
-            ( "grant_type"
-                =: ("password" :: Text)
-                <> "username"
-                  =: creds.username
-                <> "password"
-                  =: creds.password
-            )
-    let options = basicAuth (TE.encodeUtf8 (clientID creds)) (TE.encodeUtf8 (clientSecret creds))
-    response <- req POST uri body lbsResponse options
-    throwDecode (responseBody response)
-
-  currentTime <- getCurrentTime
-  let seconds = secondsToNominalDiffTime . realToFrac $ tokenInternal._expires_in
-  let expires_at = addUTCTime seconds currentTime
+  let uaBS = TE.encodeUtf8 ua
+  tokenRef <- Auth.getToken creds uaBS >>= R.newIORef
   pure $
     RedditEnv
-      { token = TE.encodeUtf8 tokenInternal._access_token,
-        tokenType = TE.encodeUtf8 tokenInternal._token_type,
-        tokenScope = TE.encodeUtf8 tokenInternal._scope,
-        tokenExpiresAt = expires_at,
-        userAgent = TE.encodeUtf8 ua,
+      { token = tokenRef,
+        credsUsername = creds.username,
+        credsPassword = HiddenText creds.password,
+        credsClientID = creds.clientID,
+        credsClientSecret = HiddenText creds.clientSecret,
+        userAgent = uaBS,
         streamDelay = 5,
         streamStorageSize = 250
       }
+
+-- | This function is not exported, but is used when the access token has to be
+-- updated (i.e. when it expires). It updates the contents of the IORefs in the
+-- RedditEnv with an updated token.
+reauthenticate :: RedditEnv -> IO ()
+reauthenticate env = do
+  let creds =
+        Auth.Credentials
+          { username = env.credsUsername,
+            password = getHiddenText env.credsPassword,
+            clientID = env.credsClientID,
+            clientSecret = getHiddenText env.credsClientSecret
+          }
+  token <- Auth.getToken creds env.userAgent
+  R.writeIORef env.token token
+
+-- | Perform a RedditT action, but before running it, check the validity of the
+-- existing token and reauthenticate if it has expired already.
+--
+-- Generally, we only need to use this in functions which are actually querying
+-- a Reddit API endpoint (it doesn't need to be indiscriminately applied to all
+-- functions with a RedditT type).
+withTokenCheck :: RedditT a -> RedditT a
+withTokenCheck action = do
+  env <- ask
+  t <- liftIO $ R.readIORef env.token
+  let expiryTime = t.expires_at
+  currentTime <- liftIO getCurrentTime
+  when
+    (nominalDiffTimeToSeconds (diffUTCTime currentTime expiryTime) > 0)
+    (liftIO $ reauthenticate env)
+  action
 
 oauth :: Text
 oauth = "oauth.reddit.com"
 
 -- | Convenience function to generate HTTP headers required for basic
 -- authentication.
-withUAToken :: RedditEnv -> Option 'Https
-withUAToken env = header "user-agent" (userAgent env) <> oAuth2Bearer (token env)
+withUAToken :: (MonadIO m) => RedditEnv -> m (Option 'Https)
+withUAToken env = do
+  t <- liftIO $ R.readIORef env.token
+  pure $ header "user-agent" (userAgent env) <> oAuth2Bearer t.token
 
 -- | Revoke an access token contained in a @RedditEnv@, rendering it unusable.
 -- If you want to continue performing queries after this, you will need to
 -- generate a new @RedditEnv@.
 revokeToken :: RedditEnv -> IO ()
 revokeToken env = do
-  runReq defaultHttpConfig $ do
+  t <- R.readIORef env.token
+  uat <- withUAToken env
+  void $ runReq defaultHttpConfig $ do
     let uri = https "www.reddit.com" /: "api" /: "v1" /: "revoke_token"
-    let req_params = withUAToken env
     let body_params =
-          "token" =: TE.decodeUtf8 (token env)
-            <> "token_type_hint" =: TE.decodeUtf8 (tokenType env)
-    void $ req POST uri (ReqBodyUrlEnc body_params) ignoreResponse req_params
-
-data RedditException = TokenExpiredException deriving (Show)
-
-instance Exception RedditException
-
--- | TODO: Don't check before using it, check the response headers instead to
--- determine if token has expired
-checkTokenValidity :: RedditT ()
-checkTokenValidity = do
-  expiryTime <- reader tokenExpiresAt
-  currentTime <- liftIO getCurrentTime
-  when
-    (nominalDiffTimeToSeconds (diffUTCTime currentTime expiryTime) > 0)
-    (liftIO (throwIO TokenExpiredException))
+          "token" =: TE.decodeUtf8 t.token
+            <> "token_type_hint" =: TE.decodeUtf8 t.token_type
+    req POST uri (ReqBodyUrlEnc body_params) ignoreResponse uat
 
 -- $listings
 -- Listings are Reddit's way of paginating things (i.e. comments, posts, etc.).
@@ -359,12 +357,13 @@ getListingSingle ::
   Option 'Https ->
   -- | The things, plus the \'after\' field returned by Reddit.
   RedditT ([t], Maybe Text)
-getListingSingle size aft url in_params = do
+getListingSingle size aft url in_params = withTokenCheck $ do
   env <- ask
+  uat <- withUAToken env
   when (size > 100) (error "getListingSingle: size should be 100 or less. This is a bug, please report it.")
   let params =
         in_params
-          <> withUAToken env
+          <> uat
           <> "limit" =: size
           <> ( case aft of
                  Just t -> "after" =: t
@@ -410,12 +409,13 @@ getListings size aft uri in_params = do
 --
 -- TODO: Fix when the list is more than 100 elements long.
 getThingsByIDs :: (HasID t, FromJSON t) => [ID t] -> RedditT [t]
-getThingsByIDs ids = do
+getThingsByIDs ids = withTokenCheck $ do
   env <- ask
+  uat <- withUAToken env
   let fullNames = T.intercalate "," (map mkFullNameFromID ids)
   respBody <- liftIO $ runReq defaultHttpConfig $ do
     let uri = https oauth /: "api" /: "info"
-    let params = withUAToken env <> "id" =: fullNames
+    let params = uat <> "id" =: fullNames
     response <- req GET uri NoReqBody lbsResponse params
     pure (responseBody response)
   ct <- contents <$> throwDecode respBody
@@ -457,14 +457,14 @@ addNewComment ::
   -- | The contents of the comment (in Markdown)
   Text ->
   RedditT ()
-addNewComment x body = do
+addNewComment x body = withTokenCheck $ do
   env <- ask
+  uat <- withUAToken env
   let fullName = mkFullNameFromID x
   liftIO $ runReq defaultHttpConfig $ do
     let uri = https oauth /: "api" /: "comment"
-    let req_params = withUAToken env
     let body_params = "thing_id" =: fullName <> "text" =: body
-    void $ req POST uri (ReqBodyUrlEnc body_params) ignoreResponse req_params
+    void $ req POST uri (ReqBodyUrlEnc body_params) ignoreResponse uat
 
 -- | Get the most recent comments by a user.
 accountComments ::
@@ -492,11 +492,12 @@ subredditComments n sr =
 
 -- | Retrieve a post, together with a tree of comments on it.
 getPostAndComments :: ID Post -> RedditT (Post, [CommentTree])
-getPostAndComments (PostID p) = do
+getPostAndComments (PostID p) = withTokenCheck $ do
   env <- ask
+  uat <- withUAToken env
   respBody <- liftIO $ runReq defaultHttpConfig $ do
     let uri = https oauth /: "comments" /: p
-    response <- req GET uri NoReqBody lbsResponse (withUAToken env)
+    response <- req GET uri NoReqBody lbsResponse uat
     pure (responseBody response)
   -- Reddit returns a JSON array where the first item is a listing containing
   -- the post, and the second a listing containing the comments. Thankfully, the
@@ -527,11 +528,12 @@ getAccountByName ::
   -- | Username (without the @\/u\/@).
   Text ->
   RedditT Account
-getAccountByName uname = do
+getAccountByName uname = withTokenCheck $ do
   env <- ask
+  uat <- withUAToken env
   respBody <- liftIO $ runReq defaultHttpConfig $ do
     let uri = https oauth /: "user" /: uname /: "about"
-    response <- req GET uri NoReqBody lbsResponse (withUAToken env)
+    response <- req GET uri NoReqBody lbsResponse uat
     pure (responseBody response)
   throwDecode respBody
 
@@ -599,14 +601,14 @@ subredditPosts n sr sort = do
 -- | Edit the contents of a comment or a text post. You must be authenticated as
 -- the person who posted it.
 edit :: (CanCommentOn a) => ID a -> Text -> RedditT ()
-edit id newBody = do
+edit id newBody = withTokenCheck $ do
   let fullName = mkFullNameFromID id
   env <- ask
+  uat <- withUAToken env
   liftIO $ runReq defaultHttpConfig $ do
     let uri = https oauth /: "api" /: "editusertext"
-    let req_params = withUAToken env
     let body_params = "thing_id" =: fullName <> "text" =: newBody
-    void $ req POST uri (ReqBodyUrlEnc body_params) ignoreResponse req_params
+    void $ req POST uri (ReqBodyUrlEnc body_params) ignoreResponse uat
 
 -- | Delete a post or a comment. You must be authenticated as the person who
 -- posted it.
@@ -614,14 +616,14 @@ edit id newBody = do
 -- If you want to remove a post or a comment on a subreddit you moderate, use
 -- 'remove' instead.
 delete :: (CanCommentOn a) => ID a -> RedditT ()
-delete id = do
+delete id = withTokenCheck $ do
   let fullName = mkFullNameFromID id
   env <- ask
+  uat <- withUAToken env
   liftIO $ runReq defaultHttpConfig $ do
     let uri = https oauth /: "api" /: "del"
-    let req_params = withUAToken env
     let body_params = "id" =: fullName
-    void $ req POST uri (ReqBodyUrlEnc body_params) ignoreResponse req_params
+    void $ req POST uri (ReqBodyUrlEnc body_params) ignoreResponse uat
 
 -- | As a moderator, remove a post or a comment. This is the inverse of
 -- 'approve'.
@@ -631,27 +633,27 @@ remove ::
   -- | Whether the thing being removed is spam.
   Bool ->
   RedditT ()
-remove id isSpam = do
+remove id isSpam = withTokenCheck $ do
   let fullName = mkFullNameFromID id
   let spam :: Text = if isSpam then "true" else "false"
   env <- ask
+  uat <- withUAToken env
   liftIO $ runReq defaultHttpConfig $ do
     let uri = https oauth /: "api" /: "remove"
-    let req_params = withUAToken env
     let body_params = "id" =: fullName <> "spam" =: spam
-    void $ req POST uri (ReqBodyUrlEnc body_params) ignoreResponse req_params
+    void $ req POST uri (ReqBodyUrlEnc body_params) ignoreResponse uat
 
 -- | As a moderator, approve a post or a comment. This is the inverse of
 -- 'remove'.
 approve :: (CanCommentOn a) => ID a -> RedditT ()
-approve id = do
+approve id = withTokenCheck $ do
   let fullName = mkFullNameFromID id
   env <- ask
+  uat <- withUAToken env
   liftIO $ runReq defaultHttpConfig $ do
     let uri = https oauth /: "api" /: "approve"
-    let req_params = withUAToken env
     let body_params = "id" =: fullName
-    void $ req POST uri (ReqBodyUrlEnc body_params) ignoreResponse req_params
+    void $ req POST uri (ReqBodyUrlEnc body_params) ignoreResponse uat
 
 -- $messages
 --
@@ -676,13 +678,14 @@ getSubredditsByName ::
   -- | List of subreddit names (without the @\/r\/@'s).
   [Text] ->
   RedditT [Subreddit]
-getSubredditsByName s_names = do
+getSubredditsByName s_names = withTokenCheck $ do
   env <- ask
+  uat <- withUAToken env
   let allNames = T.intercalate "," s_names
   respBody <- liftIO $ runReq defaultHttpConfig $ do
     let uri = https oauth /: "api" /: "info"
-    let params = withUAToken env <> "sr_name" =: allNames
-    response <- req GET uri NoReqBody lbsResponse params
+    let req_params = uat <> "sr_name" =: allNames
+    response <- req GET uri NoReqBody lbsResponse req_params
     pure (responseBody response)
   psts <- contents <$> throwDecode respBody
   when
