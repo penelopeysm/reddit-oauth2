@@ -201,7 +201,8 @@ data Comment = Comment
     score :: Int,
     -- | Username of the author (without the @\/u\/@).
     author :: Text,
-    author_id :: ID Account,
+    -- | Can be @Nothing@ if the account was deleted.
+    author_id :: Maybe (ID Account),
     -- | Body text in Markdown.
     body :: Text,
     -- | Name of the subreddit it was posted on (without the @\/r\/@ prefix).
@@ -224,7 +225,7 @@ instance FromJSON Comment where
     url <- (redditURL <>) <$> v .: "permalink"
     score <- v .: "score"
     author <- v .: "author"
-    author_id <- v .: "author_fullname"
+    author_id <- v .:? "author_fullname"
     body <- v .: "body"
     subreddit <- v .: "subreddit"
     subreddit_id <- v .: "subreddit_id"
@@ -301,7 +302,8 @@ data Post = Post
     score :: Int,
     -- | Username of the author (without the @\/u\/@).
     author :: Text,
-    author_id :: ID Account,
+    -- | Can be @Nothing@ if the account was deleted.
+    author_id :: Maybe (ID Account),
     title :: Text,
     -- | Empty string if not a text post.
     body :: Text,
@@ -324,7 +326,7 @@ instance FromJSON Post where
     url <- (redditURL <>) <$> v .: "permalink"
     score <- v .: "score"
     author <- v .: "author"
-    author_id <- v .: "author_fullname"
+    author_id <- v .:? "author_fullname"
     title <- v .: "title"
     body <- v .: "selftext"
     content_url <- v .: "url"
