@@ -42,10 +42,10 @@ main = do
   hSetBuffering stdout NoBuffering
 
   runRedditT' env $ do
-    (post, tree) <- getPostAndComments (PostID "131cb5y")
+    (post, tree) <- getPostWithComments (PostID "131cb5y")
     liftIO $ mapM_ (printTree 0) tree
     liftIO $ T.putStrLn ""
     liftIO $ T.putStrLn "--------------------------"
     liftIO $ T.putStrLn ""
-    tree' <- expandTreeFully post.id' tree
+    tree' <- expandTree post.id' tree
     liftIO $ mapM_ (printTree 0) tree'
