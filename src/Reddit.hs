@@ -412,14 +412,16 @@ getThingByID its_id = do
 -- | Fetch a list of comments by their IDs. More efficient than @map getComment@
 -- because it only makes one API call.
 --
--- TODO: This uses the @\/api\/info@ endpoint, which (apparently) provides
--- slightly less information than @\/comments\/\<article\>@. For example, this
--- endpoint doesn't provide a list of replies. This is probably worth
--- investigating.
+-- This function can work with any collection of comments (they may, for
+-- example, be scattered amongst a whole range of posts). However, it does not
+-- return a list of replies for each comment. If you want to see comment
+-- replies, you need to use 'getPostWithComments', which internally uses a
+-- different API endpoint.
 getComments :: [ID Comment] -> RedditT [Comment]
 getComments = getThingsByIDs
 
--- | Fetch a single comment given its ID.
+-- | Fetch a single comment given its ID. The same caveat described for
+-- 'getComments' also applies here.
 getComment :: ID Comment -> RedditT Comment
 getComment = getThingByID
 
@@ -581,9 +583,6 @@ getAccountByName uname = withTokenCheck $ do
   throwDecode respBody
 
 -- $posts
---
--- Fetch the first 25 posts from a given subreddit ordered by the
--- @SubredditSort@ parameter.
 
 -- | The timeframe over which to get top or most controversial posts.
 data Timeframe = Hour | Day | Week | Month | Year | All
@@ -597,6 +596,9 @@ getPosts :: [ID Post] -> RedditT [Post]
 getPosts = getThingsByIDs
 
 -- | Fetch a single post given its ID.
+--
+-- If you want to fetch a post together with its comments, you can use
+-- 'getPostWithComments'.
 getPost :: ID Post -> RedditT Post
 getPost = getThingByID
 
@@ -612,7 +614,8 @@ accountPosts n uname = do
   let uri = https oauth /: "user" /: uname /: "submitted"
    in getListings n Nothing uri mempty
 
--- | Get the posts from the front page of a subreddit.
+-- | Get the posts from the front page of a subreddit, with the ordering
+-- specified in the @SubredditSort@ argument.
 subredditPosts ::
   -- | Number of posts to fetch (maximum 1000). See [the listings
   -- section](#listings) for an explanation of this parameter.
