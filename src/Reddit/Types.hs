@@ -26,12 +26,20 @@ module Reddit.Types
     CanCommentOn (..),
     HasID (..),
     EditedUTCTime (..),
+    MoreChildren (..),
+    addChildrenToTree,
+    getFirstMore,
+    removeFromTrees,
+    treeToList,
+    treeSize,
   )
 where
 
 import Control.Applicative ((<|>))
 import Data.Aeson
 import Data.Aeson.Types (Parser (..))
+import Data.List (foldl')
+import Data.Monoid (First (..), getFirst)
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.Clock
@@ -56,17 +64,17 @@ redditURL = "https://reddit.com"
 -- Please get in touch if you want to tell me about alternatives.
 data ID a where
   -- | t1_
-  CommentID :: Text -> ID Comment
+  CommentID :: {unCommentID :: Text} -> ID Comment
   -- | t2_
-  AccountID :: Text -> ID Account
+  AccountID :: {unAccountID :: Text} -> ID Account
   -- | t3_
-  PostID :: Text -> ID Post
+  PostID :: {unPostID :: Text} -> ID Post
   -- | t4_
-  MessageID :: Text -> ID Message
+  MessageID :: {unMessageID :: Text} -> ID Message
   -- | t5_
-  SubredditID :: Text -> ID Subreddit
+  SubredditID :: {unSubredditID :: Text} -> ID Subreddit
   -- | t6_
-  AwardID :: Text -> ID Award
+  AwardID :: {unAwardID :: Text} -> ID Award
 
 deriving instance (Show a) => Show (ID a)
 
@@ -239,14 +247,23 @@ instance FromJSON Comment where
 -- | When fetching comments on a specific post, we need a tree-like structure to
 -- account for the relationship between comments.
 --
--- Each post is a list of top-level @CommentTree@s. Each @CommentTree@ is either
--- a comment together with its replies, or a special @MoreComments@ value which
--- represents the fact that a discussion continues further, but the data were
--- not returned immediately by Reddit.
+-- Each post is associated with a list of top-level @CommentTree@s. Each
+-- @CommentTree@ is either a comment together with its replies, or a special
+-- @MoreComments@ value which represents the fact that a discussion continues
+-- further, but the data were not returned immediately by Reddit.
 data CommentTree
   = ActualComment Comment [CommentTree]
   | MoreComments [ID Comment]
-  deriving (Show)
+  deriving (Eq, Show)
+
+-- | Get all actual comments from inside a tree, ignoring all @MoreComments@ links.
+treeToList :: CommentTree -> [Comment]
+treeToList (MoreComments _) = []
+treeToList (ActualComment c ts) = c : concatMap treeToList ts
+
+-- | Number of actual comments contained within a tree.
+treeSize :: CommentTree -> Int
+treeSize = length . treeToList
 
 instance FromJSON CommentTree where
   parseJSON = withObject "CommentTree" $ \o -> do
@@ -264,6 +281,94 @@ instance FromJSON CommentTree where
             replies' <- contents <$> parseJSON v'
             pure $ ActualComment comment replies'
       s -> fail . T.unpack $ "Expected 'more' or 't1' in Listing, got " <> s
+
+-- | Internal type to handle the return type of the api/morechildren endpoint.
+--
+-- Note that this endpoint does not return comments in a tree form, so, for
+-- example, the @replies@ field of a @ReturnedCmt Comment@ will always be empty.
+-- It is apparently left to the user to pick up the pieces and reconstruct the
+-- tree, using the @parent_id@ field.
+data MoreChildren
+  = ReturnedCmt Comment
+  | ReturnedMore (Either (ID Comment) (ID Post)) [ID Comment]
+  deriving (Show)
+
+instance FromJSON MoreChildren where
+  parseJSON = withObject "api/morechildren" $ \o -> do
+    (kind :: Text) <- o .: "kind"
+    case kind of
+      "more" -> do
+        v <- o .: "data"
+        ids <- v .: "children"
+        parent_id <- (Left <$> v .: "parent_id") <|> (Right <$> v .: "parent_id")
+        pure $ ReturnedMore parent_id (map CommentID ids)
+      "t1" -> ReturnedCmt <$> parseJSON (Object o)
+      s -> fail . T.unpack $ "Expected 'more' or 't1' in morechildren, got " <> s
+
+addChildrenToTree :: [MoreChildren] -> [CommentTree] -> [CommentTree]
+addChildrenToTree children tree = foldl' (flip updateTree) tree children
+  where
+    convert :: MoreChildren -> CommentTree
+    convert (ReturnedCmt c) = ActualComment c []
+    convert (ReturnedMore _ ids) = MoreComments ids
+    -- The Bool in the return type tells us whether it was added to the tree or
+    -- not.
+    addToOneTree :: MoreChildren -> CommentTree -> (Bool, CommentTree)
+    addToOneTree _ m@(MoreComments _) = (False, m)
+    addToOneTree child (ActualComment c replies) =
+      let parent_id = case child of
+            ReturnedCmt c -> c.parent_id
+            ReturnedMore p _ -> p
+       in if Left c.id' == parent_id
+            then (True, ActualComment c (replies ++ [convert child]))
+            else
+              let results = map (addToOneTree child) replies
+                  found = any fst results
+                  replies' = map snd results
+               in (found, ActualComment c replies')
+    updateTree :: MoreChildren -> [CommentTree] -> [CommentTree]
+    updateTree child trees =
+      let parent_id = case child of
+            ReturnedCmt c -> c.parent_id
+            ReturnedMore p _ -> p
+       in case parent_id of
+            Left (CommentID _) -> case trees of
+              [] -> []
+              (t : ts) ->
+                let (added, t') = addToOneTree child t
+                 in if added
+                      then t' : ts
+                      else t : updateTree child ts
+            Right (PostID _) -> trees ++ [convert child]
+
+-- | Find the first instance of @MoreComments@ in a tree.
+getFirstMore :: [CommentTree] -> Maybe CommentTree
+getFirstMore trees =
+  -- Find in a single tree
+  let getFirstMore' :: CommentTree -> Maybe CommentTree
+      getFirstMore' m@(MoreComments ids) = Just m
+      getFirstMore' (ActualComment _ replies) = getFirstMore replies
+   in getFirst . mconcat . map (First . getFirstMore') $ trees
+
+-- | Remove a branch from a tree
+removeFromTrees :: CommentTree -> [CommentTree] -> [CommentTree]
+removeFromTrees _ [] = []
+removeFromTrees c (t : ts) = case rmv c t of
+                                  (Nothing, _) -> ts -- t itself was the thing to be removed
+                                  (Just t', True) -> t' : ts
+                                  (Just t', False) -> t' : removeFromTrees c ts
+  where
+    -- Remove from a single tree. Bool indicates whether it was removed.
+    rmv :: CommentTree -> CommentTree -> (Maybe CommentTree, Bool)
+    rmv c t =
+      if c == t
+        then (Nothing, True)
+        else case t of
+          ActualComment cmt replies ->
+            let replies' = removeFromTrees c replies
+                removed = length replies /= length replies'
+                in (Just $ ActualComment cmt replies', removed)
+          m -> (Just m, False)
 
 -- Account
 

@@ -14,7 +14,7 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Reddit
 import System.Environment (getEnv)
-import System.IO (hFlush, stdout)
+import System.IO
 
 getEnvAsText :: Text -> IO Text
 getEnvAsText = fmap T.pack . getEnv . T.unpack
@@ -39,6 +39,13 @@ main = do
   let creds = Credentials {..}
 
   env <- authenticate creds userAgent
+  hSetBuffering stdout NoBuffering
 
   runRedditT' env $ do
-    commentStream defaultStreamSettings (\_ c -> liftIO $ T.putStrLn c.author) () "pokemontrades"
+    (post, tree) <- getPostAndComments (PostID "131cb5y")
+    liftIO $ mapM_ (printTree 0) tree
+    liftIO $ T.putStrLn ""
+    liftIO $ T.putStrLn "--------------------------"
+    liftIO $ T.putStrLn ""
+    tree' <- expandTreeFully post.id' tree
+    liftIO $ mapM_ (printTree 0) tree'
