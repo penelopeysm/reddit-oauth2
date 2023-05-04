@@ -443,8 +443,8 @@ addNewComment x body = withTokenCheck $ do
 
 -- | Get the most recent comments by a user.
 accountComments ::
-  -- | Number of comments to fetch. See [the listings section](#listings) for
-  -- an explanation of this parameter.
+  -- | Number of comments to fetch (maximum 1000). See [the listings
+  -- section](#listings) for an explanation of this parameter.
   Int ->
   -- | Username (without the @\/u\/@).
   Text ->
@@ -455,8 +455,8 @@ accountComments n uname =
 
 -- | Get the most recent comments on a subreddit.
 subredditComments ::
-  -- | Number of comments to fetch. See [the listings section](#listings) for
-  -- an explanation of this parameter.
+  -- | Number of comments to fetch (maximum 1000). See [the listings
+  -- section](#listings) for an explanation of this parameter.
   Int ->
   -- | Subreddit name (without the @\/r\/@).
   Text ->
@@ -602,8 +602,8 @@ getPost = getThingByID
 
 -- | Get the most recent posts by a user.
 accountPosts ::
-  -- | Number of posts to fetch. See [the listings section](#listings) for an
-  -- explanation of this parameter.
+  -- | Number of posts to fetch (maximum 1000). See [the listings
+  -- section](#listings) for an explanation of this parameter.
   Int ->
   -- | Username (without the @\/u\/@).
   Text ->
@@ -614,8 +614,8 @@ accountPosts n uname = do
 
 -- | Get the posts from the front page of a subreddit.
 subredditPosts ::
-  -- | Number of posts to fetch. See [the listings section](#listings) for an
-  -- explanation of this parameter.
+  -- | Number of posts to fetch (maximum 1000). See [the listings
+  -- section](#listings) for an explanation of this parameter.
   Int ->
   -- | Subreddit name (without the @\/r\/@).
   Text ->
