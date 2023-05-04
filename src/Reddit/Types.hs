@@ -202,6 +202,8 @@ convertEditedTime (Number n) = EditedAt (posixSecondsToUTCTime . realToFrac $ n)
 -- Comment
 
 -- | A single comment.
+--
+-- Note that the @Eq@ and @Ord@ instances for @Comment@ only compare the comment ID.
 data Comment = Comment
   { id' :: ID Comment,
     -- | Permalink.
@@ -224,7 +226,13 @@ data Comment = Comment
     createdTime :: UTCTime,
     editedTime :: EditedUTCTime
   }
-  deriving (Eq, Ord, Show)
+  deriving (Show)
+
+instance Eq Comment where
+  c1 == c2 = c1.id' == c2.id'
+
+instance Ord Comment where
+  compare c1 c2 = compare c1.id' c2.id'
 
 instance FromJSON Comment where
   parseJSON = withObject "Comment" $ \o -> do
@@ -354,9 +362,9 @@ getFirstMore trees =
 removeFromTrees :: CommentTree -> [CommentTree] -> [CommentTree]
 removeFromTrees _ [] = []
 removeFromTrees c (t : ts) = case rmv c t of
-                                  (Nothing, _) -> ts -- t itself was the thing to be removed
-                                  (Just t', True) -> t' : ts
-                                  (Just t', False) -> t' : removeFromTrees c ts
+  (Nothing, _) -> ts -- t itself was the thing to be removed
+  (Just t', True) -> t' : ts
+  (Just t', False) -> t' : removeFromTrees c ts
   where
     -- Remove from a single tree. Bool indicates whether it was removed.
     rmv :: CommentTree -> CommentTree -> (Maybe CommentTree, Bool)
@@ -367,7 +375,7 @@ removeFromTrees c (t : ts) = case rmv c t of
           ActualComment cmt replies ->
             let replies' = removeFromTrees c replies
                 removed = length replies /= length replies'
-                in (Just $ ActualComment cmt replies', removed)
+             in (Just $ ActualComment cmt replies', removed)
           m -> (Just m, False)
 
 -- Account
@@ -399,7 +407,9 @@ instance FromJSON Account where
 
 -- Post
 
--- | A single post
+-- | A single post.
+--
+-- Note that the @Eq@ and @Ord@ instances for @Post@ only compare the post ID.
 data Post = Post
   { id' :: ID Post,
     -- | Permalink.
@@ -422,7 +432,13 @@ data Post = Post
     createdTime :: UTCTime,
     editedTime :: EditedUTCTime
   }
-  deriving (Eq, Ord, Show)
+  deriving (Show)
+
+instance Eq Post where
+  p1 == p2 = p1.id' == p2.id'
+
+instance Ord Post where
+  compare p1 p2 = compare p1.id' p2.id'
 
 instance FromJSON Post where
   parseJSON = withObject "Post" $ \o -> do
