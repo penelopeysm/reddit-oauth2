@@ -34,7 +34,7 @@
 </span><span id="line-27"></span><span>    </span><span id="_scope"><span class="annot"><span class="annottext">TokenInternal -&gt; Text
 </span><a href="Reddit.Auth.html#_scope"><span class="hs-identifier hs-var hs-var">_scope</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="../file:///usr/local/.ghcup/ghc/9.2.7/share/doc/ghc-9.2.7/html/libraries/text-1.2.5.0/src"><span class="hs-identifier hs-type">Text</span></a></span><span>
 </span><span id="line-28"></span><span>  </span><span class="hs-special">}</span><span>
-</span><span id="line-29"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679093034"><span id="local-6989586621679093036"><span id="local-6989586621679093046"><span class="annot"><span class="annottext">Int -&gt; TokenInternal -&gt; ShowS
+</span><span id="line-29"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679094290"><span id="local-6989586621679094292"><span id="local-6989586621679094302"><span class="annot"><span class="annottext">Int -&gt; TokenInternal -&gt; ShowS
 [TokenInternal] -&gt; ShowS
 TokenInternal -&gt; String
 forall a.
@@ -47,33 +47,33 @@ showsPrec :: Int -&gt; TokenInternal -&gt; ShowS
 $cshowsPrec :: Int -&gt; TokenInternal -&gt; ShowS
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.7/share/doc/ghc-9.2.7/html/libraries/base-4.16.4.0/src"><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></a></span></span></span></span><span class="hs-special">)</span><span>
 </span><span id="line-30"></span><span>
-</span><span id="line-31"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679093030"><span class="annot"><span class="hs-identifier hs-type">FromJSON</span></span><span> </span><span class="annot"><a href="Reddit.Auth.html#TokenInternal"><span class="hs-identifier hs-type">TokenInternal</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
-</span><span id="line-32"></span><span>  </span><span id="local-6989586621679093011"><span class="annot"><span class="annottext">parseJSON :: Value -&gt; Parser TokenInternal
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var">parseJSON</span></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Object</span></span><span> </span><span id="local-6989586621679093008"><span class="annot"><span class="annottext">Object
-</span><a href="#local-6989586621679093008"><span class="hs-identifier hs-var">v</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-31"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679094286"><span class="annot"><span class="hs-identifier hs-type">FromJSON</span></span><span> </span><span class="annot"><a href="Reddit.Auth.html#TokenInternal"><span class="hs-identifier hs-type">TokenInternal</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-32"></span><span>  </span><span id="local-6989586621679094267"><span class="annot"><span class="annottext">parseJSON :: Value -&gt; Parser TokenInternal
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">parseJSON</span></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Object</span></span><span> </span><span id="local-6989586621679094264"><span class="annot"><span class="annottext">Object
+</span><a href="#local-6989586621679094264"><span class="hs-identifier hs-var">v</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
 </span><span id="line-33"></span><span>    </span><span class="annot"><span class="annottext">Text -&gt; Text -&gt; Int -&gt; Text -&gt; TokenInternal
 </span><a href="Reddit.Auth.html#TokenInternal"><span class="hs-identifier hs-var">TokenInternal</span></a></span><span>
 </span><span id="line-34"></span><span>      </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.7/share/doc/ghc-9.2.7/html/libraries/base-4.16.4.0/src"><span class="hs-operator hs-var">&lt;$&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">Object
-</span><a href="#local-6989586621679093008"><span class="hs-identifier hs-var">v</span></a></span><span>
+</span><a href="#local-6989586621679094264"><span class="hs-identifier hs-var">v</span></a></span><span>
 </span><span id="line-35"></span><span>        </span><span class="annot"><span class="annottext">forall a. FromJSON a =&gt; Object -&gt; Key -&gt; Parser a
 </span><span class="hs-operator hs-var">.:</span></span><span> </span><span class="annot"><span class="annottext">Key
 </span><span class="hs-string">&quot;access_token&quot;</span></span><span>
 </span><span id="line-36"></span><span>      </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.7/share/doc/ghc-9.2.7/html/libraries/base-4.16.4.0/src"><span class="hs-operator hs-var">&lt;*&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">Object
-</span><a href="#local-6989586621679093008"><span class="hs-identifier hs-var">v</span></a></span><span>
+</span><a href="#local-6989586621679094264"><span class="hs-identifier hs-var">v</span></a></span><span>
 </span><span id="line-37"></span><span>        </span><span class="annot"><span class="annottext">forall a. FromJSON a =&gt; Object -&gt; Key -&gt; Parser a
 </span><span class="hs-operator hs-var">.:</span></span><span> </span><span class="annot"><span class="annottext">Key
 </span><span class="hs-string">&quot;token_type&quot;</span></span><span>
 </span><span id="line-38"></span><span>      </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.7/share/doc/ghc-9.2.7/html/libraries/base-4.16.4.0/src"><span class="hs-operator hs-var">&lt;*&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">Object
-</span><a href="#local-6989586621679093008"><span class="hs-identifier hs-var">v</span></a></span><span>
+</span><a href="#local-6989586621679094264"><span class="hs-identifier hs-var">v</span></a></span><span>
 </span><span id="line-39"></span><span>        </span><span class="annot"><span class="annottext">forall a. FromJSON a =&gt; Object -&gt; Key -&gt; Parser a
 </span><span class="hs-operator hs-var">.:</span></span><span> </span><span class="annot"><span class="annottext">Key
 </span><span class="hs-string">&quot;expires_in&quot;</span></span><span>
 </span><span id="line-40"></span><span>      </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.7/share/doc/ghc-9.2.7/html/libraries/base-4.16.4.0/src"><span class="hs-operator hs-var">&lt;*&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">Object
-</span><a href="#local-6989586621679093008"><span class="hs-identifier hs-var">v</span></a></span><span>
+</span><a href="#local-6989586621679094264"><span class="hs-identifier hs-var">v</span></a></span><span>
 </span><span id="line-41"></span><span>        </span><span class="annot"><span class="annottext">forall a. FromJSON a =&gt; Object -&gt; Key -&gt; Parser a
 </span><span class="hs-operator hs-var">.:</span></span><span> </span><span class="annot"><span class="annottext">Key
 </span><span class="hs-string">&quot;scope&quot;</span></span><span>
@@ -81,14 +81,14 @@ $cshowsPrec :: Int -&gt; TokenInternal -&gt; ShowS
 </span><span id="line-43"></span><span class="hs-comment">-- | Obtain a raw token using credentials.</span><span>
 </span><span id="line-44"></span><span class="annot"><a href="Reddit.Auth.html#getTokenInternal"><span class="hs-identifier hs-type">getTokenInternal</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Reddit.Auth.html#Credentials"><span class="hs-identifier hs-type">Credentials</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="../file:///usr/local/.ghcup/ghc/9.2.7/share/doc/ghc-9.2.7/html/libraries/bytestring-0.11.4.0/src"><span class="hs-identifier hs-type">ByteString</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="../file:///usr/local/.ghcup/ghc/9.2.7/share/doc/ghc-9.2.7/html/libraries/ghc-prim-0.8.0/src"><span class="hs-identifier hs-type">IO</span></a></span><span> </span><span class="annot"><a href="Reddit.Auth.html#TokenInternal"><span class="hs-identifier hs-type">TokenInternal</span></a></span><span>
 </span><span id="line-45"></span><span id="getTokenInternal"><span class="annot"><span class="annottext">getTokenInternal :: Credentials -&gt; ByteString -&gt; IO TokenInternal
-</span><a href="Reddit.Auth.html#getTokenInternal"><span class="hs-identifier hs-var hs-var">getTokenInternal</span></a></span></span><span> </span><span id="local-6989586621679093004"><span class="annot"><span class="annottext">Credentials
-</span><a href="#local-6989586621679093004"><span class="hs-identifier hs-var">creds</span></a></span></span><span> </span><span id="local-6989586621679093003"><span class="annot"><span class="annottext">ByteString
-</span><a href="#local-6989586621679093003"><span class="hs-identifier hs-var">ua</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MonadIO m =&gt; HttpConfig -&gt; Req a -&gt; m a
+</span><a href="Reddit.Auth.html#getTokenInternal"><span class="hs-identifier hs-var hs-var">getTokenInternal</span></a></span></span><span> </span><span id="local-6989586621679094260"><span class="annot"><span class="annottext">Credentials
+</span><a href="#local-6989586621679094260"><span class="hs-identifier hs-var">creds</span></a></span></span><span> </span><span id="local-6989586621679094259"><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679094259"><span class="hs-identifier hs-var">ua</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MonadIO m =&gt; HttpConfig -&gt; Req a -&gt; m a
 </span><span class="hs-identifier hs-var">runReq</span></span><span> </span><span class="annot"><span class="annottext">HttpConfig
 </span><span class="hs-identifier hs-var">defaultHttpConfig</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.7/share/doc/ghc-9.2.7/html/libraries/base-4.16.4.0/src"><span class="hs-operator hs-var">$</span></a></span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-46"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679092996"><span class="annot"><span class="annottext">uri :: Url 'Https
-</span><a href="#local-6989586621679092996"><span class="hs-identifier hs-var hs-var">uri</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text -&gt; Url 'Https
+</span><span id="line-46"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679094252"><span class="annot"><span class="annottext">uri :: Url 'Https
+</span><a href="#local-6989586621679094252"><span class="hs-identifier hs-var hs-var">uri</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text -&gt; Url 'Https
 </span><span class="hs-identifier hs-var">https</span></span><span> </span><span class="annot"><span class="annottext">Text
 </span><span class="hs-string">&quot;www.reddit.com&quot;</span></span><span> </span><span class="annot"><span class="annottext">forall (scheme :: Scheme). Url scheme -&gt; Text -&gt; Url scheme
 </span><span class="hs-operator hs-var">/:</span></span><span> </span><span class="annot"><span class="annottext">Text
@@ -97,8 +97,8 @@ $cshowsPrec :: Int -&gt; TokenInternal -&gt; ShowS
 </span><span class="hs-string">&quot;v1&quot;</span></span><span> </span><span class="annot"><span class="annottext">forall (scheme :: Scheme). Url scheme -&gt; Text -&gt; Url scheme
 </span><span class="hs-operator hs-var">/:</span></span><span> </span><span class="annot"><span class="annottext">Text
 </span><span class="hs-string">&quot;access_token&quot;</span></span><span>
-</span><span id="line-47"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679092993"><span class="annot"><span class="annottext">body :: ReqBodyUrlEnc
-</span><a href="#local-6989586621679092993"><span class="hs-identifier hs-var hs-var">body</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-47"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679094249"><span class="annot"><span class="annottext">body :: ReqBodyUrlEnc
+</span><a href="#local-6989586621679094249"><span class="hs-identifier hs-var hs-var">body</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
 </span><span id="line-48"></span><span>        </span><span class="annot"><span class="annottext">FormUrlEncodedParam -&gt; ReqBodyUrlEnc
 </span><span class="hs-identifier hs-var">ReqBodyUrlEnc</span></span><span>
 </span><span id="line-49"></span><span>          </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="annottext">Text
@@ -115,7 +115,7 @@ Text -&gt; a -&gt; param
 (QueryParam param, ToHttpApiData a) =&gt;
 Text -&gt; a -&gt; param
 </span><span class="hs-operator hs-var">=:</span></span><span> </span><span class="annot"><span class="annottext">Credentials
-</span><a href="#local-6989586621679093004"><span class="hs-identifier hs-var">creds</span></a></span><span class="hs-operator">.</span><span class="hs-identifier">username</span><span>
+</span><a href="#local-6989586621679094260"><span class="hs-identifier hs-var">creds</span></a></span><span class="hs-operator">.</span><span class="hs-identifier">username</span><span>
 </span><span id="line-53"></span><span>              </span><span class="annot"><span class="annottext">forall a. Semigroup a =&gt; a -&gt; a -&gt; a
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.7/share/doc/ghc-9.2.7/html/libraries/base-4.16.4.0/src"><span class="hs-operator hs-var">&lt;&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">Text
 </span><span class="hs-string">&quot;password&quot;</span></span><span>
@@ -123,26 +123,26 @@ Text -&gt; a -&gt; param
 (QueryParam param, ToHttpApiData a) =&gt;
 Text -&gt; a -&gt; param
 </span><span class="hs-operator hs-var">=:</span></span><span> </span><span class="annot"><span class="annottext">Credentials
-</span><a href="#local-6989586621679093004"><span class="hs-identifier hs-var">creds</span></a></span><span class="hs-operator">.</span><span class="hs-identifier">password</span><span>
+</span><a href="#local-6989586621679094260"><span class="hs-identifier hs-var">creds</span></a></span><span class="hs-operator">.</span><span class="hs-identifier">password</span><span>
 </span><span id="line-55"></span><span>          </span><span class="hs-special">)</span><span>
-</span><span id="line-56"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679092990"><span class="annot"><span class="annottext">req_params :: Option 'Https
-</span><a href="#local-6989586621679092990"><span class="hs-identifier hs-var hs-var">req_params</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-56"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679094246"><span class="annot"><span class="annottext">req_params :: Option 'Https
+</span><a href="#local-6989586621679094246"><span class="hs-identifier hs-var hs-var">req_params</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
 </span><span id="line-57"></span><span>        </span><span class="annot"><span class="annottext">forall (scheme :: Scheme).
 ByteString -&gt; ByteString -&gt; Option scheme
 </span><span class="hs-identifier hs-var">header</span></span><span> </span><span class="annot"><span class="annottext">ByteString
 </span><span class="hs-string">&quot;user-agent&quot;</span></span><span> </span><span class="annot"><span class="annottext">ByteString
-</span><a href="#local-6989586621679093003"><span class="hs-identifier hs-var">ua</span></a></span><span>
+</span><a href="#local-6989586621679094259"><span class="hs-identifier hs-var">ua</span></a></span><span>
 </span><span id="line-58"></span><span>          </span><span class="annot"><span class="annottext">forall a. Semigroup a =&gt; a -&gt; a -&gt; a
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.7/share/doc/ghc-9.2.7/html/libraries/base-4.16.4.0/src"><span class="hs-operator hs-var">&lt;&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; ByteString -&gt; Option 'Https
 </span><span class="hs-identifier hs-var">basicAuth</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Text -&gt; ByteString
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.7/share/doc/ghc-9.2.7/html/libraries/text-1.2.5.0/src"><span class="hs-identifier hs-var">TE.encodeUtf8</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Credentials -&gt; Text
 </span><a href="Reddit.Auth.html#clientID"><span class="hs-identifier hs-var">clientID</span></a></span><span> </span><span class="annot"><span class="annottext">Credentials
-</span><a href="#local-6989586621679093004"><span class="hs-identifier hs-var">creds</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Text -&gt; ByteString
+</span><a href="#local-6989586621679094260"><span class="hs-identifier hs-var">creds</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Text -&gt; ByteString
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.7/share/doc/ghc-9.2.7/html/libraries/text-1.2.5.0/src"><span class="hs-identifier hs-var">TE.encodeUtf8</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Credentials -&gt; Text
 </span><a href="Reddit.Auth.html#clientSecret"><span class="hs-identifier hs-var">clientSecret</span></a></span><span> </span><span class="annot"><span class="annottext">Credentials
-</span><a href="#local-6989586621679093004"><span class="hs-identifier hs-var">creds</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
-</span><span id="line-59"></span><span>  </span><span id="local-6989586621679092986"><span class="annot"><span class="annottext">LbsResponse
-</span><a href="#local-6989586621679092986"><span class="hs-identifier hs-var">response</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) method body response (scheme :: Scheme).
+</span><a href="#local-6989586621679094260"><span class="hs-identifier hs-var">creds</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-59"></span><span>  </span><span id="local-6989586621679094242"><span class="annot"><span class="annottext">LbsResponse
+</span><a href="#local-6989586621679094242"><span class="hs-identifier hs-var">response</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) method body response (scheme :: Scheme).
 (MonadHttp m, HttpMethod method, HttpBody body,
  HttpResponse response,
  HttpBodyAllowed (AllowsBody method) (ProvidesBody body)) =&gt;
@@ -154,10 +154,10 @@ method
 -&gt; m response
 </span><span class="hs-identifier hs-var">req</span></span><span> </span><span class="annot"><span class="annottext">POST
 </span><span class="hs-identifier hs-var">POST</span></span><span> </span><span class="annot"><span class="annottext">Url 'Https
-</span><a href="#local-6989586621679092996"><span class="hs-identifier hs-var">uri</span></a></span><span> </span><span class="annot"><span class="annottext">ReqBodyUrlEnc
-</span><a href="#local-6989586621679092993"><span class="hs-identifier hs-var">body</span></a></span><span> </span><span class="annot"><span class="annottext">Proxy LbsResponse
+</span><a href="#local-6989586621679094252"><span class="hs-identifier hs-var">uri</span></a></span><span> </span><span class="annot"><span class="annottext">ReqBodyUrlEnc
+</span><a href="#local-6989586621679094249"><span class="hs-identifier hs-var">body</span></a></span><span> </span><span class="annot"><span class="annottext">Proxy LbsResponse
 </span><span class="hs-identifier hs-var">lbsResponse</span></span><span> </span><span class="annot"><span class="annottext">Option 'Https
-</span><a href="#local-6989586621679092990"><span class="hs-identifier hs-var">req_params</span></a></span><span>
+</span><a href="#local-6989586621679094246"><span class="hs-identifier hs-var">req_params</span></a></span><span>
 </span><span id="line-60"></span><span>  </span><span class="annot"><span class="annottext">forall a (m :: * -&gt; *).
 (FromJSON a, MonadThrow m) =&gt;
 ByteString -&gt; m a
@@ -165,7 +165,7 @@ ByteString -&gt; m a
 HttpResponse response =&gt;
 response -&gt; HttpResponseBody response
 </span><span class="hs-identifier hs-var">responseBody</span></span><span> </span><span class="annot"><span class="annottext">LbsResponse
-</span><a href="#local-6989586621679092986"><span class="hs-identifier hs-var">response</span></a></span><span class="hs-special">)</span><span>
+</span><a href="#local-6989586621679094242"><span class="hs-identifier hs-var">response</span></a></span><span class="hs-special">)</span><span>
 </span><span id="line-61"></span><span>
 </span><span id="line-62"></span><span class="hs-comment">-- | A parsed value of a Reddit access token.</span><span>
 </span><span id="line-63"></span><span class="hs-keyword">data</span><span> </span><span id="Token"><span class="annot"><a href="Reddit.Auth.html#Token"><span class="hs-identifier hs-var">Token</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Token"><span class="annot"><a href="Reddit.Auth.html#Token"><span class="hs-identifier hs-var">Token</span></a></span></span><span>
@@ -178,7 +178,7 @@ response -&gt; HttpResponseBody response
 </span><span id="line-67"></span><span>    </span><span id="scope"><span class="annot"><span class="annottext">Token -&gt; ByteString
 </span><a href="Reddit.Auth.html#scope"><span class="hs-identifier hs-var hs-var">scope</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="../file:///usr/local/.ghcup/ghc/9.2.7/share/doc/ghc-9.2.7/html/libraries/bytestring-0.11.4.0/src"><span class="hs-identifier hs-type">ByteString</span></a></span><span>
 </span><span id="line-68"></span><span>  </span><span class="hs-special">}</span><span>
-</span><span id="line-69"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679092963"><span id="local-6989586621679092965"><span id="local-6989586621679092974"><span class="annot"><span class="annottext">Int -&gt; Token -&gt; ShowS
+</span><span id="line-69"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679094219"><span id="local-6989586621679094221"><span id="local-6989586621679094230"><span class="annot"><span class="annottext">Int -&gt; Token -&gt; ShowS
 [Token] -&gt; ShowS
 Token -&gt; String
 forall a.
@@ -193,23 +193,23 @@ $cshowsPrec :: Int -&gt; Token -&gt; ShowS
 </span><span id="line-70"></span><span>
 </span><span id="line-71"></span><span class="annot"><a href="Reddit.Auth.html#parseToken"><span class="hs-identifier hs-type">parseToken</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Reddit.Auth.html#TokenInternal"><span class="hs-identifier hs-type">TokenInternal</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="../file:///usr/local/.ghcup/ghc/9.2.7/share/doc/ghc-9.2.7/html/libraries/ghc-prim-0.8.0/src"><span class="hs-identifier hs-type">IO</span></a></span><span> </span><span class="annot"><a href="Reddit.Auth.html#Token"><span class="hs-identifier hs-type">Token</span></a></span><span>
 </span><span id="line-72"></span><span id="parseToken"><span class="annot"><span class="annottext">parseToken :: TokenInternal -&gt; IO Token
-</span><a href="Reddit.Auth.html#parseToken"><span class="hs-identifier hs-var hs-var">parseToken</span></a></span></span><span> </span><span id="local-6989586621679092961"><span class="annot"><span class="annottext">TokenInternal
-</span><a href="#local-6989586621679092961"><span class="hs-identifier hs-var">tokenInternal</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-73"></span><span>  </span><span id="local-6989586621679092960"><span class="annot"><span class="annottext">UTCTime
-</span><a href="#local-6989586621679092960"><span class="hs-identifier hs-var">currentTime</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO UTCTime
+</span><a href="Reddit.Auth.html#parseToken"><span class="hs-identifier hs-var hs-var">parseToken</span></a></span></span><span> </span><span id="local-6989586621679094217"><span class="annot"><span class="annottext">TokenInternal
+</span><a href="#local-6989586621679094217"><span class="hs-identifier hs-var">tokenInternal</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-73"></span><span>  </span><span id="local-6989586621679094216"><span class="annot"><span class="annottext">UTCTime
+</span><a href="#local-6989586621679094216"><span class="hs-identifier hs-var">currentTime</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO UTCTime
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.7/share/doc/ghc-9.2.7/html/libraries/time-1.11.1.1/src"><span class="hs-identifier hs-var">getCurrentTime</span></a></span><span>
-</span><span id="line-74"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679092958"><span class="annot"><span class="annottext">seconds :: NominalDiffTime
-</span><a href="#local-6989586621679092958"><span class="hs-identifier hs-var hs-var">seconds</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Pico -&gt; NominalDiffTime
+</span><span id="line-74"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679094214"><span class="annot"><span class="annottext">seconds :: NominalDiffTime
+</span><a href="#local-6989586621679094214"><span class="hs-identifier hs-var hs-var">seconds</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Pico -&gt; NominalDiffTime
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.7/share/doc/ghc-9.2.7/html/libraries/time-1.11.1.1/src"><span class="hs-identifier hs-var">secondsToNominalDiffTime</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.7/share/doc/ghc-9.2.7/html/libraries/base-4.16.4.0/src"><span class="hs-operator hs-var">.</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (Real a, Fractional b) =&gt; a -&gt; b
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.7/share/doc/ghc-9.2.7/html/libraries/base-4.16.4.0/src"><span class="hs-identifier hs-var">realToFrac</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.7/share/doc/ghc-9.2.7/html/libraries/base-4.16.4.0/src"><span class="hs-operator hs-var">$</span></a></span><span> </span><span class="annot"><span class="annottext">TokenInternal
-</span><a href="#local-6989586621679092961"><span class="hs-identifier hs-var">tokenInternal</span></a></span><span class="hs-operator">.</span><span class="hs-identifier">_expires_in</span><span>
-</span><span id="line-75"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679092955"><span class="annot"><span class="annottext">expires_at :: UTCTime
-</span><a href="#local-6989586621679092955"><span class="hs-identifier hs-var hs-var">expires_at</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">NominalDiffTime -&gt; UTCTime -&gt; UTCTime
+</span><a href="#local-6989586621679094217"><span class="hs-identifier hs-var">tokenInternal</span></a></span><span class="hs-operator">.</span><span class="hs-identifier">_expires_in</span><span>
+</span><span id="line-75"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679094211"><span class="annot"><span class="annottext">expires_at :: UTCTime
+</span><a href="#local-6989586621679094211"><span class="hs-identifier hs-var hs-var">expires_at</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">NominalDiffTime -&gt; UTCTime -&gt; UTCTime
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.7/share/doc/ghc-9.2.7/html/libraries/time-1.11.1.1/src"><span class="hs-identifier hs-var">addUTCTime</span></a></span><span> </span><span class="annot"><span class="annottext">NominalDiffTime
-</span><a href="#local-6989586621679092958"><span class="hs-identifier hs-var">seconds</span></a></span><span> </span><span class="annot"><span class="annottext">UTCTime
-</span><a href="#local-6989586621679092960"><span class="hs-identifier hs-var">currentTime</span></a></span><span>
+</span><a href="#local-6989586621679094214"><span class="hs-identifier hs-var">seconds</span></a></span><span> </span><span class="annot"><span class="annottext">UTCTime
+</span><a href="#local-6989586621679094216"><span class="hs-identifier hs-var">currentTime</span></a></span><span>
 </span><span id="line-76"></span><span>  </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.7/share/doc/ghc-9.2.7/html/libraries/base-4.16.4.0/src"><span class="hs-identifier hs-var">pure</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.7/share/doc/ghc-9.2.7/html/libraries/base-4.16.4.0/src"><span class="hs-operator hs-var">$</span></a></span><span>
@@ -217,28 +217,28 @@ $cshowsPrec :: Int -&gt; Token -&gt; ShowS
 </span><span id="line-78"></span><span>      </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">token :: ByteString
 </span><a href="Reddit.Auth.html#token"><span class="hs-identifier hs-var">token</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text -&gt; ByteString
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.7/share/doc/ghc-9.2.7/html/libraries/text-1.2.5.0/src"><span class="hs-identifier hs-var">TE.encodeUtf8</span></a></span><span> </span><span class="annot"><span class="annottext">TokenInternal
-</span><a href="#local-6989586621679092961"><span class="hs-identifier hs-var">tokenInternal</span></a></span><span class="hs-operator">.</span><span class="hs-identifier">_access_token</span><span class="hs-special">,</span><span>
+</span><a href="#local-6989586621679094217"><span class="hs-identifier hs-var">tokenInternal</span></a></span><span class="hs-operator">.</span><span class="hs-identifier">_access_token</span><span class="hs-special">,</span><span>
 </span><span id="line-79"></span><span>        </span><span class="annot"><span class="annottext">token_type :: ByteString
 </span><a href="Reddit.Auth.html#token_type"><span class="hs-identifier hs-var">token_type</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text -&gt; ByteString
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.7/share/doc/ghc-9.2.7/html/libraries/text-1.2.5.0/src"><span class="hs-identifier hs-var">TE.encodeUtf8</span></a></span><span> </span><span class="annot"><span class="annottext">TokenInternal
-</span><a href="#local-6989586621679092961"><span class="hs-identifier hs-var">tokenInternal</span></a></span><span class="hs-operator">.</span><span class="hs-identifier">_token_type</span><span class="hs-special">,</span><span>
+</span><a href="#local-6989586621679094217"><span class="hs-identifier hs-var">tokenInternal</span></a></span><span class="hs-operator">.</span><span class="hs-identifier">_token_type</span><span class="hs-special">,</span><span>
 </span><span id="line-80"></span><span>        </span><span class="annot"><span class="annottext">scope :: ByteString
 </span><a href="Reddit.Auth.html#scope"><span class="hs-identifier hs-var">scope</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text -&gt; ByteString
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.7/share/doc/ghc-9.2.7/html/libraries/text-1.2.5.0/src"><span class="hs-identifier hs-var">TE.encodeUtf8</span></a></span><span> </span><span class="annot"><span class="annottext">TokenInternal
-</span><a href="#local-6989586621679092961"><span class="hs-identifier hs-var">tokenInternal</span></a></span><span class="hs-operator">.</span><span class="hs-identifier">_scope</span><span class="hs-special">,</span><span>
+</span><a href="#local-6989586621679094217"><span class="hs-identifier hs-var">tokenInternal</span></a></span><span class="hs-operator">.</span><span class="hs-identifier">_scope</span><span class="hs-special">,</span><span>
 </span><span id="line-81"></span><span>        </span><span class="annot"><span class="annottext">expires_at :: UTCTime
 </span><a href="Reddit.Auth.html#expires_at"><span class="hs-identifier hs-var">expires_at</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">UTCTime
-</span><a href="#local-6989586621679092955"><span class="hs-identifier hs-var">expires_at</span></a></span><span>
+</span><a href="#local-6989586621679094211"><span class="hs-identifier hs-var">expires_at</span></a></span><span>
 </span><span id="line-82"></span><span>      </span><span class="hs-special">}</span><span>
 </span><span id="line-83"></span><span>
 </span><span id="line-84"></span><span class="annot"><a href="Reddit.Auth.html#getToken"><span class="hs-identifier hs-type">getToken</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Reddit.Auth.html#Credentials"><span class="hs-identifier hs-type">Credentials</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="../file:///usr/local/.ghcup/ghc/9.2.7/share/doc/ghc-9.2.7/html/libraries/bytestring-0.11.4.0/src"><span class="hs-identifier hs-type">ByteString</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="../file:///usr/local/.ghcup/ghc/9.2.7/share/doc/ghc-9.2.7/html/libraries/ghc-prim-0.8.0/src"><span class="hs-identifier hs-type">IO</span></a></span><span> </span><span class="annot"><a href="Reddit.Auth.html#Token"><span class="hs-identifier hs-type">Token</span></a></span><span>
 </span><span id="line-85"></span><span id="getToken"><span class="annot"><span class="annottext">getToken :: Credentials -&gt; ByteString -&gt; IO Token
-</span><a href="Reddit.Auth.html#getToken"><span class="hs-identifier hs-var hs-var">getToken</span></a></span></span><span> </span><span id="local-6989586621679092953"><span class="annot"><span class="annottext">Credentials
-</span><a href="#local-6989586621679092953"><span class="hs-identifier hs-var">creds</span></a></span></span><span> </span><span id="local-6989586621679092952"><span class="annot"><span class="annottext">ByteString
-</span><a href="#local-6989586621679092952"><span class="hs-identifier hs-var">ua</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Credentials -&gt; ByteString -&gt; IO TokenInternal
+</span><a href="Reddit.Auth.html#getToken"><span class="hs-identifier hs-var hs-var">getToken</span></a></span></span><span> </span><span id="local-6989586621679094209"><span class="annot"><span class="annottext">Credentials
+</span><a href="#local-6989586621679094209"><span class="hs-identifier hs-var">creds</span></a></span></span><span> </span><span id="local-6989586621679094208"><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679094208"><span class="hs-identifier hs-var">ua</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Credentials -&gt; ByteString -&gt; IO TokenInternal
 </span><a href="Reddit.Auth.html#getTokenInternal"><span class="hs-identifier hs-var">getTokenInternal</span></a></span><span> </span><span class="annot"><span class="annottext">Credentials
-</span><a href="#local-6989586621679092953"><span class="hs-identifier hs-var">creds</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
-</span><a href="#local-6989586621679092952"><span class="hs-identifier hs-var">ua</span></a></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; (a -&gt; m b) -&gt; m b
+</span><a href="#local-6989586621679094209"><span class="hs-identifier hs-var">creds</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679094208"><span class="hs-identifier hs-var">ua</span></a></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; (a -&gt; m b) -&gt; m b
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.7/share/doc/ghc-9.2.7/html/libraries/base-4.16.4.0/src"><span class="hs-operator hs-var">&gt;&gt;=</span></a></span><span> </span><span class="annot"><span class="annottext">TokenInternal -&gt; IO Token
 </span><a href="Reddit.Auth.html#parseToken"><span class="hs-identifier hs-var">parseToken</span></a></span><span>
 </span><span id="line-86"></span></pre></body></html>
