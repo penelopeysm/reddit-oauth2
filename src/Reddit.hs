@@ -47,7 +47,9 @@ module Reddit
     addNewComment,
     accountComments,
     subredditComments,
-    postComments,
+    getPostWithComments,
+    expandTree,
+    expandTreeFully,
 
     -- * Accounts (i.e. users)
 
@@ -65,7 +67,6 @@ module Reddit
     Reddit.Types.Post (..),
     getPosts,
     getPost,
-    getPostAndComments,
     accountPosts,
     Timeframe (..),
     SubredditSort (..),
@@ -124,7 +125,7 @@ import Control.Exception (Exception (..), finally, throwIO)
 import Control.Monad (foldM)
 import Control.Monad.Reader
 import Data.Aeson
-import Data.Aeson.Types (Value (..))
+import Data.Aeson.Types (Value (..), parse)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B
@@ -465,8 +466,19 @@ subredditComments n sr =
    in getListings n Nothing uri mempty
 
 -- | Retrieve a post, together with a tree of comments on it.
-getPostAndComments :: ID Post -> RedditT (Post, [CommentTree])
-getPostAndComments (PostID p) = withTokenCheck $ do
+--
+-- This comment tree does not necessarily contain all comments on the post. For
+-- posts with many comments, Reddit often hides comments which are above a
+-- certain depth / very low in the thread. This can be seen on the website,
+-- where you need to click 'X more replies' to load the comments fully. In this
+-- library, this is modelled as a 'MoreComments' value.
+--
+-- The Reddit API does not provide any way to directly obtain these collapsed
+-- replies: instead, they must be expanded one by one. You can use either
+-- 'expandTree' to perform expansion step-by-step, or use 'expandTreeFully' to
+-- recursively expand every collapsed reply.
+getPostWithComments :: ID Post -> RedditT (Post, [CommentTree])
+getPostWithComments (PostID p) = withTokenCheck $ do
   env <- ask
   uat <- withUAToken env
   respBody <- liftIO $ runReq defaultHttpConfig $ do
@@ -481,9 +493,66 @@ getPostAndComments (PostID p) = withTokenCheck $ do
     [p] -> pure (p, contents cmtListing)
     _ -> fail "Expected one post, got many"
 
--- | Retrieve the comments on a post.
-postComments :: ID Post -> RedditT [CommentTree]
-postComments p = snd <$> getPostAndComments p
+-- | Fetch unshown comments on a post.
+getMoreChildren :: ID Post -> [ID Comment] -> RedditT [MoreChildren]
+getMoreChildren pid cids =
+  if null cids
+    then pure []
+    else withTokenCheck $ do
+      env <- ask
+      uat <- withUAToken env
+      respBody <- liftIO $ runReq defaultHttpConfig $ do
+        let uri = https oauth /: "api" /: "morechildren"
+        let query_params =
+              uat
+                <> "api_type" =: ("json" :: Text)
+                <> "link_id" =: mkFullNameFromID pid
+                <> "children" =: T.intercalate "," (map unCommentID cids)
+        response <- req GET uri NoReqBody lbsResponse query_params
+        pure (responseBody response)
+      -- The actual data we want is nested a few levels down.
+      Object v <- throwDecode respBody
+      case parse (\v -> v .: "json" >>= (.: "data") >>= (.: "things")) v of
+        Error err -> fail err
+        -- 'things' is the actual array of stuff we want
+        Success (things :: Value) -> case parse parseJSON things of
+          Error err' -> fail err'
+          Success result -> pure result
+
+-- | Expand the first instance of @MoreComments@ in a tree. The required post ID
+-- is that of the post for which you are expanding comments.
+expandTree :: ID Post -> [CommentTree] -> RedditT [CommentTree]
+expandTree pid trees = case getFirstMore trees of
+  Nothing -> pure trees
+  Just m@(MoreComments cids) -> do
+    children <- getMoreChildren pid cids
+    let remaining = removeFromTrees m trees
+    pure $ addChildrenToTree children remaining
+  _ -> error "Shouldn't happen"
+
+-- | Expand all instances of @MoreComments@ in a tree (including those unveiled
+-- by expanding previous @MoreComments@).
+--
+-- Essentially, if you want to obtain every single comment on a post given its
+-- ID @(pid :: ID Post)@, then you can do:
+--
+-- @
+-- (_, trees) <- getPostWithComments pid
+-- expandedTrees <- expandTreeFully pid trees
+-- @
+--
+-- Note that this can take quite a bit of time to run for posts with thousands
+-- of comments. It can't be sped up either, because [Reddit's
+-- API](https://www.reddit.com/dev/api/#GET_api_morechildren) stipulates that
+-- you cannot make concurrent requests to this endpoint.
+expandTreeFully :: ID Post -> [CommentTree] -> RedditT [CommentTree]
+expandTreeFully pid trees = case getFirstMore trees of
+  Nothing -> pure trees
+  Just _ -> do
+    trees' <- expandTree pid trees
+    let sz = sum (map treeSize trees)
+    let sz' = sum (map treeSize trees')
+    expandTreeFully pid trees'
 
 -- $accounts
 -- Accounts.
