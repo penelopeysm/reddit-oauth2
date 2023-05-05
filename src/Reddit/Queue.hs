@@ -1,7 +1,7 @@
 -- |
 -- Module      : Reddit.Queue
 -- Description : A bounded queue used for streams.
--- Copyright   : (c) Penelope Y. 2023
+-- Copyright   : (c) Penelope Yong 2023
 -- License     : MIT
 -- Maintainer  : penelopeysm@gmail.com
 -- Stability   : experimental

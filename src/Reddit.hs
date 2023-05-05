@@ -4,7 +4,7 @@
 -- |
 -- Module      : Reddit
 -- Description : Functions to interact with the Reddit OAuth2 API
--- Copyright   : (c) Penelope Y. 2023
+-- Copyright   : (c) Penelope Yong 2023
 -- License     : MIT
 -- Maintainer  : penelopeysm@gmail.com
 -- Stability   : experimental

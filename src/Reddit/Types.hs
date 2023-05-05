@@ -4,7 +4,7 @@
 -- |
 -- Module      : Reddit.Types
 -- Description : Underlying types for the things returned by Reddit
--- Copyright   : (c) Penelope Y. 2023
+-- Copyright   : (c) Penelope Yong 2023
 -- License     : MIT
 -- Maintainer  : penelopeysm@gmail.com
 -- Stability   : experimental
@@ -40,6 +40,7 @@ import Data.Aeson
 import Data.Aeson.Types (Parser (..))
 import Data.List (foldl')
 import Data.Monoid (First (..), getFirst)
+import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.Clock
