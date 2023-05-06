@@ -5,7 +5,7 @@
 -- |
 -- Module      : Reddit.Example
 -- Description : An example of a simple Reddit bot built using this library
--- Copyright   : (c) Penelope Y. 2023
+-- Copyright   : (c) Penelope Yong 2023
 -- License     : MIT
 -- Maintainer  : penelopeysm@gmail.com
 -- Stability   : experimental

@@ -42,10 +42,5 @@ main = do
   hSetBuffering stdout NoBuffering
 
   runRedditT' env $ do
-    (post, tree) <- getPostWithComments (PostID "131cb5y")
-    liftIO $ mapM_ (printTree 0) tree
-    liftIO $ T.putStrLn ""
-    liftIO $ T.putStrLn "--------------------------"
-    liftIO $ T.putStrLn ""
-    tree' <- expandTree post.id' tree
-    liftIO $ mapM_ (printTree 0) tree'
+    posts <- subredditPosts 100 "pokemontrades" New
+    liftIO $ forM_ posts (\p -> T.putStrLn p.title)
