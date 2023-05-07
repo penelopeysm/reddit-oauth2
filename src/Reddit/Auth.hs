@@ -5,7 +5,17 @@
 -- License     : MIT
 -- Maintainer  : penelopeysm@gmail.com
 -- Stability   : experimental
-module Reddit.Auth (Credentials (..), Token (..), getToken) where
+module Reddit.Auth
+  ( Credentials (..),
+    Token (..),
+    getToken,
+    AuthSettings (..),
+    mkRedditAuthURL,
+    Scope (..),
+    allScopes,
+    Duration (..),
+  )
+where
 
 import Data.Aeson
 import Data.ByteString (ByteString)
@@ -16,14 +26,15 @@ import qualified Data.Text.Encoding as TE
 import Data.Time.Clock
 import Network.HTTP.Req
 import Reddit.Types
+import qualified Text.URI as URI
 
 -- | A record containing the credentials needed to authenticate with the OAuth2
 -- API.
 data Credentials = Credentials
-  { username :: Text,
-    password :: Text,
-    clientID :: Text,
-    clientSecret :: Text
+  { credsUsername :: Text,
+    credsPassword :: Text,
+    credsClientId :: Text,
+    credsClientSecret :: Text
   }
 
 -- * OAuth2 scopes
@@ -131,6 +142,9 @@ showScopes = T.intercalate "," . map showOneScope . S.toList
       ScopeWikiEdit -> "wikiedit"
       ScopeWikiRead -> "wikiread"
 
+allScopes :: S.Set Scope
+allScopes = S.fromList [minBound .. maxBound]
+
 -- * Access tokens
 
 -- | The raw JSON representation of an access token, as returned by Reddit.
@@ -162,22 +176,22 @@ getTokenInternal creds ua = runReq defaultHttpConfig $ do
           ( "grant_type"
               =: ("password" :: Text)
               <> "username"
-                =: creds.username
+                =: credsUsername creds
               <> "password"
-                =: creds.password
+                =: credsPassword creds
           )
   let req_params =
         header "user-agent" ua
-          <> basicAuth (TE.encodeUtf8 (clientID creds)) (TE.encodeUtf8 (clientSecret creds))
+          <> basicAuth (TE.encodeUtf8 (credsClientId creds)) (TE.encodeUtf8 (credsClientSecret creds))
   response <- req POST uri body lbsResponse req_params
   throwDecode (responseBody response)
 
 -- | A parsed value of a Reddit access token.
 data Token = Token
   { token :: ByteString,
-    token_type :: ByteString,
-    expires_at :: UTCTime,
-    scopes :: S.Set Scope
+    tokenType :: ByteString,
+    tokenExpiresAt :: UTCTime,
+    tokenScopes :: S.Set Scope
   }
   deriving (Show)
 
@@ -191,10 +205,51 @@ parseToken tokenInternal = do
   pure $
     Token
       { token = TE.encodeUtf8 tokenInternal._access_token,
-        token_type = TE.encodeUtf8 tokenInternal._token_type,
-        scopes = parseScopes tokenInternal._scope,
-        expires_at = expires_at
+        tokenType = TE.encodeUtf8 tokenInternal._token_type,
+        tokenScopes = parseScopes tokenInternal._scope,
+        tokenExpiresAt = expires_at
       }
 
 getToken :: Credentials -> ByteString -> IO Token
 getToken creds ua = getTokenInternal creds ua >>= parseToken
+
+-- * Code flow ('authorisation code grant')
+
+data Duration = Temporary | Permanent deriving (Eq, Ord, Show)
+
+data AuthSettings = AuthSettings
+  { clientID :: Text,
+    state :: Text,
+    redirectUri :: Text,
+    duration :: Duration,
+    scopes :: S.Set Scope
+  }
+
+mkRedditAuthURL :: AuthSettings -> Text
+mkRedditAuthURL settings =
+  let (maybeUri :: Maybe URI.URI) = do
+        baseUri <- URI.mkURI "https://www.reddit.com/api/v1/authorize"
+        clientIDKey <- URI.mkQueryKey "client_id"
+        clientIDVal <- URI.mkQueryValue settings.clientID
+        typeKey <- URI.mkQueryKey "response_type"
+        typeVal <- URI.mkQueryValue "code"
+        stateKey <- URI.mkQueryKey "state"
+        stateVal <- URI.mkQueryValue settings.state
+        redirectKey <- URI.mkQueryKey "redirect_uri"
+        redirectVal <- URI.mkQueryValue settings.redirectUri
+        durationKey <- URI.mkQueryKey "duration"
+        durationVal <- URI.mkQueryValue (T.toLower . T.pack . show $ settings.duration)
+        scopeKey <- URI.mkQueryKey "scope"
+        scopeVal <- URI.mkQueryValue (showScopes settings.scopes)
+        let params =
+              [ URI.QueryParam clientIDKey clientIDVal,
+                URI.QueryParam typeKey typeVal,
+                URI.QueryParam stateKey stateVal,
+                URI.QueryParam redirectKey redirectVal,
+                URI.QueryParam durationKey durationVal,
+                URI.QueryParam scopeKey scopeVal
+              ]
+        pure $ baseUri {URI.uriQuery = params}
+   in case maybeUri of
+        Nothing -> error $ T.unpack "mkRedditAuthURL failed"
+        Just u -> URI.render u

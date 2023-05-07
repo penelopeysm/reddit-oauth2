@@ -36,6 +36,14 @@ module Reddit
     authenticate,
     revokeToken,
 
+    -- * Authentication with code flow
+    -- $code-flow
+    Auth.AuthSettings (..),
+    Auth.mkRedditAuthURL,
+    Auth.Scope (..),
+    Auth.allScopes,
+    Auth.Duration (..),
+
     -- * Comments
 
     --
@@ -147,15 +155,15 @@ import Reddit.Types
 -- need to edit anything here, so the field accessors are not exported.
 data RedditEnv = RedditEnv
   { -- | OAuth2 token contents.
-    token :: R.IORef Auth.Token,
+    envTokenRef :: R.IORef Auth.Token,
     -- | Credentials used to log in. Must be stored to allow for
     -- reauthentication if and when the token expires.
-    credsUsername :: Text,
-    credsPassword :: HiddenText,
-    credsClientID :: Text,
-    credsClientSecret :: HiddenText,
+    envUsername :: Text,
+    envPassword :: HiddenText,
+    envClientId :: Text,
+    envClientSecret :: HiddenText,
     -- | User-agent. Should be unique.
-    userAgent :: ByteString
+    envUserAgent :: ByteString
   }
 
 -- | The type of a Reddit computation.
@@ -186,9 +194,18 @@ runRedditTCleanup' = flip runRedditTCleanup
 -- $credentials
 --
 -- This section describes the credentials needed for using the Reddit API as a
--- \'script\'.
+-- \'script\'. Specifically, if you are developing an application exclusively
+-- for personal use, then this is suitable. Most Reddit bots fall under this
+-- case.
 --
--- In order to obtain these, you will need to:
+-- Formally, this is the 'Resource Owner Password Credentials Grant' for OAuth
+-- 2.0, which is described in [Section 4.3 of IETF RFC
+-- 6749](https://datatracker.ietf.org/doc/html/rfc6749#section-4.3).
+--
+-- To authenticate in this manner, you will need a username and password for a
+-- Reddit account, plus a client ID and client secret associated with a Reddit
+-- app. The username in question must be listed as a developer of the app. You
+-- can set up a new app by:
 --
 --   1. Log in using the account you want to post or query Reddit as (this may be
 --      a bot account, for example)
@@ -222,12 +239,12 @@ authenticate creds ua = do
   tokenRef <- Auth.getToken creds uaBS >>= R.newIORef
   pure $
     RedditEnv
-      { token = tokenRef,
-        credsUsername = creds.username,
-        credsPassword = HiddenText creds.password,
-        credsClientID = creds.clientID,
-        credsClientSecret = HiddenText creds.clientSecret,
-        userAgent = uaBS
+      { envTokenRef = tokenRef,
+        envUsername = Auth.credsUsername creds,
+        envPassword = HiddenText (Auth.credsPassword creds),
+        envClientId = Auth.credsClientId creds,
+        envClientSecret = HiddenText (Auth.credsClientSecret creds),
+        envUserAgent = uaBS
       }
 
 -- | This function is not exported, but is used when the access token has to be
@@ -237,13 +254,13 @@ reauthenticate :: RedditEnv -> IO ()
 reauthenticate env = do
   let creds =
         Auth.Credentials
-          { username = env.credsUsername,
-            password = getHiddenText env.credsPassword,
-            clientID = env.credsClientID,
-            clientSecret = getHiddenText env.credsClientSecret
+          { credsUsername = envUsername env,
+            credsPassword = getHiddenText (envPassword env),
+            credsClientId = envClientId env,
+            credsClientSecret = getHiddenText (envClientSecret env)
           }
-  token <- Auth.getToken creds env.userAgent
-  R.writeIORef env.token token
+  token <- Auth.getToken creds (envUserAgent env)
+  R.writeIORef (envTokenRef env) token
 
 -- | Perform a RedditT action, but before running it, check the validity of the
 -- existing token and reauthenticate if it has expired already.
@@ -254,8 +271,8 @@ reauthenticate env = do
 withTokenCheck :: RedditT a -> RedditT a
 withTokenCheck action = do
   env <- ask
-  t <- liftIO $ R.readIORef env.token
-  let expiryTime = t.expires_at
+  t <- liftIO $ R.readIORef (envTokenRef env)
+  let expiryTime = Auth.tokenExpiresAt t
   currentTime <- liftIO getCurrentTime
   when
     (nominalDiffTimeToSeconds (diffUTCTime currentTime expiryTime) > 0)
@@ -269,22 +286,30 @@ oauth = "oauth.reddit.com"
 -- authentication.
 withUAToken :: (MonadIO m) => RedditEnv -> m (Option 'Https)
 withUAToken env = do
-  t <- liftIO $ R.readIORef env.token
-  pure $ header "user-agent" (userAgent env) <> oAuth2Bearer t.token
+  t <- liftIO $ R.readIORef (envTokenRef env)
+  pure $ header "user-agent" (envUserAgent env) <> oAuth2Bearer t.token
 
 -- | Revoke an access token contained in a @RedditEnv@, rendering it unusable.
 -- If you want to continue performing queries after this, you will need to
 -- generate a new @RedditEnv@.
 revokeToken :: RedditEnv -> IO ()
 revokeToken env = do
-  t <- R.readIORef env.token
+  t <- R.readIORef (envTokenRef env)
   uat <- withUAToken env
   void $ runReq defaultHttpConfig $ do
     let uri = https "www.reddit.com" /: "api" /: "v1" /: "revoke_token"
     let body_params =
           "token" =: TE.decodeUtf8 t.token
-            <> "token_type_hint" =: TE.decodeUtf8 t.token_type
+            <> "token_type_hint" =: TE.decodeUtf8 (Auth.tokenType t)
     req POST uri (ReqBodyUrlEnc body_params) ignoreResponse uat
+
+-- $code-flow
+--
+-- Formally, this is the 'Authorisation Code Grant' for OAuth 2.0, which is
+-- described in [Section 4.1 of IETF RFC
+-- 6749](https://datatracker.ietf.org/doc/html/rfc6749#section-4.1).
+--
+-- Blah blah....
 
 -- $listings
 -- Listings are Reddit's way of paginating things (i.e. comments, posts, etc.).
@@ -581,8 +606,6 @@ getAccountByName uname = withTokenCheck $ do
     response <- req GET uri NoReqBody lbsResponse uat
     pure (responseBody response)
   throwDecode respBody
-
--- $posts
 
 -- | The timeframe over which to get top or most controversial posts.
 data Timeframe = Hour | Day | Week | Month | Year | All

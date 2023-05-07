@@ -47,7 +47,9 @@ library
         req,
         time,
         mtl,
-        containers
+        containers,
+        modern-uri
+
     hs-source-dirs:   src
     default-language: Haskell2010
 
