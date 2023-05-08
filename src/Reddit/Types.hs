@@ -1,4 +1,3 @@
-{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE StandaloneDeriving #-}
 
 -- |
@@ -94,27 +93,27 @@ class HasID a where
   mkFullNameFromID :: ID a -> Text
 
 instance HasID Comment where
-  mkFullName cmt = mkFullNameFromID cmt.id'
+  mkFullName cmt = mkFullNameFromID (commentId cmt)
   mkFullNameFromID (CommentID c_id) = "t1_" <> c_id
 
 instance HasID Account where
-  mkFullName acc = mkFullNameFromID acc.id'
+  mkFullName acc = mkFullNameFromID (accountId acc)
   mkFullNameFromID (AccountID a_id) = "t2_" <> a_id
 
 instance HasID Post where
-  mkFullName pst = mkFullNameFromID pst.id'
+  mkFullName pst = mkFullNameFromID (postId pst)
   mkFullNameFromID (PostID p_id) = "t3_" <> p_id
 
 instance HasID Message where
-  mkFullName msg = mkFullNameFromID msg.id'
+  mkFullName msg = mkFullNameFromID (messageId msg)
   mkFullNameFromID (MessageID m_id) = "t4_" <> m_id
 
 instance HasID Subreddit where
-  mkFullName srd = mkFullNameFromID srd.id'
+  mkFullName srd = mkFullNameFromID (subredditId srd)
   mkFullNameFromID (SubredditID s_id) = "t5_" <> s_id
 
 instance HasID Award where
-  mkFullName awd = mkFullNameFromID awd.id'
+  mkFullName awd = mkFullNameFromID (awardId awd)
   mkFullNameFromID (AwardID a_id) = "t6_" <> a_id
 
 -- | Things that can be commented on (i.e. comments and posts).
@@ -206,51 +205,51 @@ convertEditedTime (Number n) = EditedAt (posixSecondsToUTCTime . realToFrac $ n)
 --
 -- Note that the @Eq@ and @Ord@ instances for @Comment@ only compare the comment ID.
 data Comment = Comment
-  { id' :: ID Comment,
+  { commentId :: ID Comment,
     -- | Permalink.
-    url :: Text,
-    score :: Int,
+    commentUrl :: Text,
+    commentScore :: Int,
     -- | Username of the author (without the @\/u\/@).
-    author :: Text,
+    commentAuthor :: Text,
     -- | Can be @Nothing@ if the account was deleted.
-    author_id :: Maybe (ID Account),
+    commentAuthorId :: Maybe (ID Account),
     -- | Body text in Markdown.
-    body :: Text,
+    commentBody :: Text,
     -- | Name of the subreddit it was posted on (without the @\/r\/@ prefix).
-    subreddit :: Text,
-    subreddit_id :: ID Subreddit,
-    post_id :: ID Post,
+    commentSubreddit :: Text,
+    commentSubredditId :: ID Subreddit,
+    commentPostId :: ID Post,
     -- | Whether the commenter also made the post.
-    is_submitter :: Bool,
+    commentIsSubmitter :: Bool,
     -- | If the comment is a top-level comment, this is the same as @Right@ of @post_id@; otherwise it's @Left@ of parent comment's ID.
-    parent_id :: Either (ID Comment) (ID Post),
-    createdTime :: UTCTime,
-    editedTime :: EditedUTCTime
+    commentParentId :: Either (ID Comment) (ID Post),
+    commentCreatedTime :: UTCTime,
+    commentEditedTime :: EditedUTCTime
   }
   deriving (Show)
 
 instance Eq Comment where
-  c1 == c2 = c1.id' == c2.id'
+  c1 == c2 = commentId c1 == commentId c2
 
 instance Ord Comment where
-  compare c1 c2 = compare c1.id' c2.id'
+  compare c1 c2 = compare (commentId c1) (commentId c2)
 
 instance FromJSON Comment where
   parseJSON = withObject "Comment" $ \o -> do
     v <- o .: "data"
-    id' <- CommentID <$> v .: "id"
-    url <- (redditURL <>) <$> v .: "permalink"
-    score <- v .: "score"
-    author <- v .: "author"
-    author_id <- v .:? "author_fullname"
-    body <- v .: "body"
-    subreddit <- v .: "subreddit"
-    subreddit_id <- v .: "subreddit_id"
-    post_id <- v .: "link_id"
-    parent_id <- (Left <$> v .: "parent_id") <|> (Right <$> v .: "parent_id")
-    is_submitter <- v .: "is_submitter"
-    createdTime <- posixSecondsToUTCTime <$> v .: "created_utc"
-    editedTime <- convertEditedTime <$> v .: "edited"
+    commentId <- CommentID <$> v .: "id"
+    commentUrl <- (redditURL <>) <$> v .: "permalink"
+    commentScore <- v .: "score"
+    commentAuthor <- v .: "author"
+    commentAuthorId <- v .:? "author_fullname"
+    commentBody <- v .: "body"
+    commentSubreddit <- v .: "subreddit"
+    commentSubredditId <- v .: "subreddit_id"
+    commentPostId <- v .: "link_id"
+    commentParentId <- (Left <$> v .: "parent_id") <|> (Right <$> v .: "parent_id")
+    commentIsSubmitter <- v .: "is_submitter"
+    commentCreatedTime <- posixSecondsToUTCTime <$> v .: "created_utc"
+    commentEditedTime <- convertEditedTime <$> v .: "edited"
     pure $ Comment {..}
 
 -- | When fetching comments on a specific post, we need a tree-like structure to
@@ -326,9 +325,9 @@ addChildrenToTree children tree = foldl' (flip updateTree) tree children
     addToOneTree _ m@(MoreComments _) = (False, m)
     addToOneTree child (ActualComment c replies) =
       let parent_id = case child of
-            ReturnedCmt c -> c.parent_id
+            ReturnedCmt c -> commentParentId c
             ReturnedMore p _ -> p
-       in if Left c.id' == parent_id
+       in if Left (commentId c) == parent_id
             then (True, ActualComment c (replies ++ [convert child]))
             else
               let results = map (addToOneTree child) replies
@@ -338,7 +337,7 @@ addChildrenToTree children tree = foldl' (flip updateTree) tree children
     updateTree :: MoreChildren -> [CommentTree] -> [CommentTree]
     updateTree child trees =
       let parent_id = case child of
-            ReturnedCmt c -> c.parent_id
+            ReturnedCmt c -> commentParentId c
             ReturnedMore p _ -> p
        in case parent_id of
             Left (CommentID _) -> case trees of
@@ -382,28 +381,28 @@ removeFromTrees c (t : ts) = case rmv c t of
 -- Account
 
 data Account = Account
-  { id' :: ID Account,
+  { accountId :: ID Account,
     -- | Username (without the @\/u\/@ prefix).
-    username :: Text,
+    accountUsername :: Text,
     -- | The name that's shown on their profile. Empty if not set.
-    display_name :: Text,
-    link_karma :: Int,
-    comment_karma :: Int,
-    total_karma :: Int,
-    createdTime :: UTCTime
+    accountDisplayName :: Text,
+    accountLinkKarma :: Int,
+    accountCommentKarma :: Int,
+    accountTotalKarma :: Int,
+    accountCreatedTime :: UTCTime
   }
   deriving (Eq, Ord, Show)
 
 instance FromJSON Account where
   parseJSON = withObject "Account" $ \o -> do
     v <- o .: "data"
-    id' <- AccountID <$> v .: "id"
-    username <- v .: "name"
-    display_name <- v .: "subreddit" >>= (.: "title")
-    link_karma <- v .: "link_karma"
-    comment_karma <- v .: "comment_karma"
-    total_karma <- v .: "total_karma"
-    createdTime <- posixSecondsToUTCTime <$> v .: "created_utc"
+    accountId <- AccountID <$> v .: "id"
+    accountUsername <- v .: "name"
+    accountDisplayName <- v .: "subreddit" >>= (.: "title")
+    accountLinkKarma <- v .: "link_karma"
+    accountCommentKarma <- v .: "comment_karma"
+    accountTotalKarma <- v .: "total_karma"
+    accountCreatedTime <- posixSecondsToUTCTime <$> v .: "created_utc"
     pure $ Account {..}
 
 -- Post
@@ -412,87 +411,87 @@ instance FromJSON Account where
 --
 -- Note that the @Eq@ and @Ord@ instances for @Post@ only compare the post ID.
 data Post = Post
-  { id' :: ID Post,
+  { postId :: ID Post,
     -- | Permalink.
-    url :: Text,
-    score :: Int,
+    postUrl :: Text,
+    postScore :: Int,
     -- | Username of the author (without the @\/u\/@).
-    author :: Text,
+    postAuthor :: Text,
     -- | Can be @Nothing@ if the account was deleted.
-    author_id :: Maybe (ID Account),
-    title :: Text,
+    postAuthorId :: Maybe (ID Account),
+    postTitle :: Text,
     -- | Empty string if not a text post.
-    body :: Text,
+    postBody :: Text,
     -- | For a link post, this is the link. For a text post, this is the same as @url@.
-    content_url :: Text,
+    postContentUrl :: Text,
     -- | None if not flaired.
-    flairtext :: Maybe Text,
+    postFlairtext :: Maybe Text,
     -- | Name of the subreddit (without the @\/r\/@)
-    subreddit :: Text,
-    subreddit_id :: ID Subreddit,
-    createdTime :: UTCTime,
-    editedTime :: EditedUTCTime
+    postSubreddit :: Text,
+    postSubredditId :: ID Subreddit,
+    postCreatedTime :: UTCTime,
+    postEditedTime :: EditedUTCTime
   }
   deriving (Show)
 
 instance Eq Post where
-  p1 == p2 = p1.id' == p2.id'
+  p1 == p2 = postId p1 == postId p2
 
 instance Ord Post where
-  compare p1 p2 = compare p1.id' p2.id'
+  compare p1 p2 = compare (postId p1) (postId p2)
 
 instance FromJSON Post where
   parseJSON = withObject "Post" $ \o -> do
     v <- o .: "data"
-    id' <- PostID <$> v .: "id"
-    url <- (redditURL <>) <$> v .: "permalink"
-    score <- v .: "score"
-    author <- v .: "author"
-    author_id <- v .:? "author_fullname"
-    title <- v .: "title"
-    body <- v .: "selftext"
-    content_url <- v .: "url"
-    flairtext <- v .: "link_flair_text"
-    subreddit <- v .: "subreddit"
-    subreddit_id <- v .: "subreddit_id"
-    createdTime <- posixSecondsToUTCTime <$> v .: "created_utc"
-    editedTime <- convertEditedTime <$> v .: "edited"
+    postId <- PostID <$> v .: "id"
+    postUrl <- (redditURL <>) <$> v .: "permalink"
+    postScore <- v .: "score"
+    postAuthor <- v .: "author"
+    postAuthorId <- v .:? "author_fullname"
+    postTitle <- v .: "title"
+    postBody <- v .: "selftext"
+    postContentUrl <- v .: "url"
+    postFlairtext <- v .: "link_flair_text"
+    postSubreddit <- v .: "subreddit"
+    postSubredditId <- v .: "subreddit_id"
+    postCreatedTime <- posixSecondsToUTCTime <$> v .: "created_utc"
+    postEditedTime <- convertEditedTime <$> v .: "edited"
     pure $ Post {..}
 
 -- Subreddit
 
 data Subreddit = Subreddit
-  { id' :: ID Subreddit,
+  { subredditId :: ID Subreddit,
     -- | Subreddit name (without the @\/r\/@).
-    name :: Text,
+    subredditName :: Text,
     -- | Human name (the string that appears at the top of the sub).
-    title :: Text,
+    subredditTitle :: Text,
     -- | Sidebar text.
-    description :: Text,
+    subredditDescription :: Text,
     -- | Number of subscribers.
-    subscribers :: Int,
+    subredditSubscribers :: Int,
     -- | Created time.
-    created :: UTCTime
+    subredditCreated :: UTCTime
   }
   deriving (Eq, Ord, Show)
 
 instance FromJSON Subreddit where
   parseJSON = withObject "Subreddit" $ \o -> do
     v <- o .: "data"
-    id' <- SubredditID <$> v .: "id"
-    name <- v .: "display_name"
-    description <- v .: "public_description"
-    title <- v .: "title"
-    subscribers <- v .: "subscribers"
-    created <- posixSecondsToUTCTime <$> v .: "created"
+    subredditId <- SubredditID <$> v .: "id"
+    subredditName <- v .: "display_name"
+    subredditDescription <- v .: "public_description"
+    subredditTitle <- v .: "title"
+    subredditSubscribers <- v .: "subscribers"
+    subredditCreated <- posixSecondsToUTCTime <$> v .: "created"
     pure $ Subreddit {..}
 
 -- Award
 
 data Award = Award
-  {id' :: ID Award}
+  {awardId :: ID Award}
   deriving (Eq, Ord, Show)
 
 data Message = Message
-  {id' :: ID Message}
+  {messageId :: ID Message}
   deriving (Eq, Ord, Show)

@@ -149,10 +149,10 @@ allScopes = S.fromList [minBound .. maxBound]
 
 -- | The raw JSON representation of an access token, as returned by Reddit.
 data TokenInternal = TokenInternal
-  { _access_token :: Text,
-    _token_type :: Text,
-    _expires_in :: Int,
-    _scope :: Text
+  { tknintToken :: Text,
+    tknintType :: Text,
+    tknintExpiresIn :: Int,
+    tknintScopes :: Text
   }
 
 instance FromJSON TokenInternal where
@@ -196,18 +196,18 @@ data Token = Token
   deriving (Show)
 
 parseToken :: TokenInternal -> IO Token
-parseToken tokenInternal = do
+parseToken ti = do
   currentTime <- getCurrentTime
-  let seconds = secondsToNominalDiffTime . realToFrac $ tokenInternal._expires_in
+  let seconds = secondsToNominalDiffTime . realToFrac $ tknintExpiresIn ti
   -- Insert 10 second buffer time just in case there's lots of time between
   -- tokenInternal and currentTime being obtained.
-  let expires_at = addUTCTime (seconds - 10) currentTime
+  let expiresAt = addUTCTime (seconds - 10) currentTime
   pure $
     Token
-      { token = TE.encodeUtf8 tokenInternal._access_token,
-        tokenType = TE.encodeUtf8 tokenInternal._token_type,
-        tokenScopes = parseScopes tokenInternal._scope,
-        tokenExpiresAt = expires_at
+      { token = TE.encodeUtf8 (tknintToken ti),
+        tokenType = TE.encodeUtf8 (tknintType ti),
+        tokenScopes = parseScopes (tknintScopes ti),
+        tokenExpiresAt = expiresAt
       }
 
 getToken :: Credentials -> ByteString -> IO Token
@@ -218,11 +218,11 @@ getToken creds ua = getTokenInternal creds ua >>= parseToken
 data Duration = Temporary | Permanent deriving (Eq, Ord, Show)
 
 data AuthSettings = AuthSettings
-  { clientID :: Text,
-    state :: Text,
-    redirectUri :: Text,
-    duration :: Duration,
-    scopes :: S.Set Scope
+  { authsClientID :: Text,
+    authsState :: Text,
+    authsRedirectUri :: Text,
+    authsDuration :: Duration,
+    authsScopes :: S.Set Scope
   }
 
 mkRedditAuthURL :: AuthSettings -> Text
@@ -230,17 +230,17 @@ mkRedditAuthURL settings =
   let (maybeUri :: Maybe URI.URI) = do
         baseUri <- URI.mkURI "https://www.reddit.com/api/v1/authorize"
         clientIDKey <- URI.mkQueryKey "client_id"
-        clientIDVal <- URI.mkQueryValue settings.clientID
+        clientIDVal <- URI.mkQueryValue (authsClientID settings)
         typeKey <- URI.mkQueryKey "response_type"
         typeVal <- URI.mkQueryValue "code"
         stateKey <- URI.mkQueryKey "state"
-        stateVal <- URI.mkQueryValue settings.state
+        stateVal <- URI.mkQueryValue (authsState settings)
         redirectKey <- URI.mkQueryKey "redirect_uri"
-        redirectVal <- URI.mkQueryValue settings.redirectUri
+        redirectVal <- URI.mkQueryValue (authsRedirectUri settings)
         durationKey <- URI.mkQueryKey "duration"
-        durationVal <- URI.mkQueryValue (T.toLower . T.pack . show $ settings.duration)
+        durationVal <- URI.mkQueryValue (T.toLower . T.pack . show $ authsDuration settings)
         scopeKey <- URI.mkQueryKey "scope"
-        scopeVal <- URI.mkQueryValue (showScopes settings.scopes)
+        scopeVal <- URI.mkQueryValue (showScopes $ authsScopes settings)
         let params =
               [ URI.QueryParam clientIDKey clientIDVal,
                 URI.QueryParam typeKey typeVal,
