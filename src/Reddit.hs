@@ -1,5 +1,4 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE GADTs #-}
 
 -- |
 -- Module      : Reddit
@@ -287,7 +286,7 @@ oauth = "oauth.reddit.com"
 withUAToken :: (MonadIO m) => RedditEnv -> m (Option 'Https)
 withUAToken env = do
   t <- liftIO $ R.readIORef (envTokenRef env)
-  pure $ header "user-agent" (envUserAgent env) <> oAuth2Bearer t.token
+  pure $ header "user-agent" (envUserAgent env) <> oAuth2Bearer (Auth.token t)
 
 -- | Revoke an access token contained in a @RedditEnv@, rendering it unusable.
 -- If you want to continue performing queries after this, you will need to
@@ -299,7 +298,7 @@ revokeToken env = do
   void $ runReq defaultHttpConfig $ do
     let uri = https "www.reddit.com" /: "api" /: "v1" /: "revoke_token"
     let body_params =
-          "token" =: TE.decodeUtf8 t.token
+          "token" =: TE.decodeUtf8 (Auth.token t)
             <> "token_type_hint" =: TE.decodeUtf8 (Auth.tokenType t)
     req POST uri (ReqBodyUrlEnc body_params) ignoreResponse uat
 
@@ -793,12 +792,12 @@ data StreamSettings = StreamSettings
   { -- | Delay (in seconds) between successive requests when using
     -- [streams](#streams). Reddit says you should not be querying more than 60
     -- times in a minute, so this should not go below 1. Defaults to 5.
-    delay :: Double,
+    streamsDelay :: Double,
     -- | Number of \'seen\' items to keep in memory when running a stream. If
     -- you are requesting N items at a go, there doesn't appear to be much point
     -- in making this larger than N. N should probably be 100, but this defaults
     -- to 250 to be safe, because I'm not sure if there are weird edge cases.
-    storageSize :: Int
+    streamsStorageSize :: Int
   }
 
 -- | Default stream settings. See 'StreamSettings' for the specification of
@@ -806,15 +805,15 @@ data StreamSettings = StreamSettings
 defaultStreamSettings :: StreamSettings
 defaultStreamSettings =
   StreamSettings
-    { delay = 5,
-      storageSize = 250
+    { streamsDelay = 5,
+      streamsStorageSize = 250
     }
 
 -- Helper function.
 streamInner :: (Eq a) => StreamSettings -> Q.Queue a -> (t -> a -> RedditT t) -> t -> RedditT [a] -> RedditT ()
 streamInner settings queue cb cbInit src = do
   -- `queue` essentially contains the last N items we've seen.
-  liftIO $ threadDelay (floorDoubleInt (settings.delay * 1000000))
+  liftIO $ threadDelay (floorDoubleInt (streamsDelay settings * 1000000))
   items <- src
   let (queue', unique) = Q.merge items queue
   cbUpdated <- foldM cb cbInit unique
@@ -848,7 +847,7 @@ stream ::
   RedditT ()
 stream settings cb cbInit src = do
   first <- src
-  streamInner settings (Q.fromList settings.storageSize first) cb cbInit src
+  streamInner settings (Q.fromList (streamsStorageSize settings) first) cb cbInit src
 
 -- | @stream'@ is a simpler version of @stream@, which accepts a callback that
 -- doesn't use state.

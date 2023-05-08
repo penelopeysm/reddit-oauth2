@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -44,17 +43,17 @@ replyIfHaskellGreat count cmt = do
   let p = liftIO . T.putStrLn
   p ""
   p "Found new comment!"
-  p $ "By    : /u/" <> cmt.author
-  p $ "Link  : " <> cmt.url
-  p $ "Text  : " <> cmt.body
+  p $ "By    : /u/" <> commentAuthor cmt
+  p $ "Link  : " <> commentUrl cmt
+  p $ "Text  : " <> commentBody cmt
   p $ T.pack ("Comments seen so far: " <> show count)
 
   let triggerText = "Haskell is great!!!!!!!!"
   let replyText = "Indeed, it is!"
   -- Check whether it contains the trigger text, and reply if necessary
   when
-    (triggerText `T.isInfixOf` cmt.body)
-    (p "Replying to it..." >> addNewComment cmt.id' replyText)
+    (triggerText `T.isInfixOf` commentBody cmt)
+    (p "Replying to it..." >> addNewComment (commentId cmt) replyText)
   pure (count + 1)
 
 -- | Run the bot.
