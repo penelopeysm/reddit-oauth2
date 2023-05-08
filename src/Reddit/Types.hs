@@ -425,7 +425,7 @@ data Post = Post
     -- | For a link post, this is the link. For a text post, this is the same as @url@.
     postContentUrl :: Text,
     -- | None if not flaired.
-    postFlairtext :: Maybe Text,
+    postFlairText :: Maybe Text,
     -- | Name of the subreddit (without the @\/r\/@)
     postSubreddit :: Text,
     postSubredditId :: ID Subreddit,
@@ -451,7 +451,7 @@ instance FromJSON Post where
     postTitle <- v .: "title"
     postBody <- v .: "selftext"
     postContentUrl <- v .: "url"
-    postFlairtext <- v .: "link_flair_text"
+    postFlairText <- v .: "link_flair_text"
     postSubreddit <- v .: "subreddit"
     postSubredditId <- v .: "subreddit_id"
     postCreatedTime <- posixSecondsToUTCTime <$> v .: "created_utc"
