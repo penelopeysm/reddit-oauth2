@@ -63,6 +63,7 @@ module Reddit
     --
     -- $accounts
     Reddit.Types.Account (..),
+    myAccount,
     getAccounts,
     getAccount,
     getAccountByName,
@@ -582,6 +583,20 @@ expandTreeFully pid trees = case getFirstMore trees of
 
 -- $accounts
 -- Accounts.
+
+-- | Fetch the account of the currently logged-in user.
+myAccount :: RedditT Account
+myAccount = withTokenCheck $ do
+  env <- ask
+  uat <- withUAToken env
+  respBody <- liftIO $ runReq defaultHttpConfig $ do
+    let uri = https oauth /: "api" /: "v1" /: "me"
+    response <- req GET uri NoReqBody lbsResponse uat
+    pure (responseBody response)
+  -- This API endpoint is really weird, because the data it returns has a
+  -- different format. Don't ask why. Anyway, we need to reconstruct the outer
+  -- layer before we can use throwDecode (or parseJSON) on it.
+  throwDecode $ "{\"data\": " <> respBody <> "}"
 
 -- | Fetch a list of accounts given their IDs. More efficient than @map
 -- getAccount@ because it only makes one API call.
