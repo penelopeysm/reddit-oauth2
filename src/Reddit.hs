@@ -37,7 +37,7 @@ module Reddit
 
     -- * Authentication with code flow
     -- $code-flow
-    Auth.AuthSettings (..),
+    Auth.AuthUrlParams (..),
     Auth.mkRedditAuthURL,
     Auth.Scope (..),
     Auth.allScopes,
@@ -158,11 +158,8 @@ data RedditEnv = RedditEnv
     envTokenRef :: R.IORef Auth.Token,
     -- | Credentials used to log in. Must be stored to allow for
     -- reauthentication if and when the token expires.
-    envUsername :: Text,
-    envPassword :: HiddenText,
-    envClientId :: Text,
-    envClientSecret :: HiddenText,
-    -- | User-agent. Should be unique.
+    envCredentials :: Auth.Credentials,
+    -- | The user-agent used for all requests.
     envUserAgent :: ByteString
   }
 
@@ -240,10 +237,7 @@ authenticate creds ua = do
   pure $
     RedditEnv
       { envTokenRef = tokenRef,
-        envUsername = Auth.credsUsername creds,
-        envPassword = HiddenText (Auth.credsPassword creds),
-        envClientId = Auth.credsClientId creds,
-        envClientSecret = HiddenText (Auth.credsClientSecret creds),
+        envCredentials = creds,
         envUserAgent = uaBS
       }
 
@@ -252,15 +246,11 @@ authenticate creds ua = do
 -- RedditEnv with an updated token.
 reauthenticate :: RedditEnv -> IO ()
 reauthenticate env = do
-  let creds =
-        Auth.Credentials
-          { credsUsername = envUsername env,
-            credsPassword = getHiddenText (envPassword env),
-            credsClientId = envClientId env,
-            credsClientSecret = getHiddenText (envClientSecret env)
-          }
-  token <- Auth.getToken creds (envUserAgent env)
-  R.writeIORef (envTokenRef env) token
+  case envCredentials env of
+    c@(Auth.OwnerCredentials {..}) -> do
+      token <- Auth.getToken c (envUserAgent env)
+      R.writeIORef (envTokenRef env) token
+    _ -> error "Not supported"
 
 -- | Perform a RedditT action, but before running it, check the validity of the
 -- existing token and reauthenticate if it has expired already.

@@ -67,11 +67,11 @@ main = do
   let userAgent = "your user-agent here"
   -- The next line can be shortened with RecordWildCards if you want.
   let creds =
-        Credentials
-          { credsUsername = username,
-            credsPassword = password,
-            credsClientId = clientID,
-            credsClientSecret = clientSecret
+        OwnerCredentials
+          { ownerUsername = username,
+            ownerPassword = password,
+            ownerClientId = clientID,
+            ownerClientSecret = clientSecret
           }
   -- Get the RedditEnv term needed to run Reddit queries.
   env <- authenticate creds userAgent

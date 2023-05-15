@@ -31,16 +31,16 @@ printTree n (ActualComment c rpls) = do
 
 main :: IO ()
 main = do
-  credsUsername <- getEnvAsText "REDDIT_USERNAME"
-  credsPassword <- getEnvAsText "REDDIT_PASSWORD"
-  credsClientId <- getEnvAsText "REDDIT_ID"
-  credsClientSecret <- getEnvAsText "REDDIT_SECRET"
+  ownerUsername <- getEnvAsText "REDDIT_USERNAME"
+  ownerPassword <- getEnvAsText "REDDIT_PASSWORD"
+  ownerClientId <- getEnvAsText "REDDIT_ID"
+  ownerClientSecret <- getEnvAsText "REDDIT_SECRET"
   let userAgent = "github:penelopeysm/reddit-oauth2 by /u/is_a_togekiss"
-  let creds = Credentials {..}
+  let creds = OwnerCredentials {..}
 
   env <- authenticate creds userAgent
   hSetBuffering stdout NoBuffering
 
   runRedditT' env $ do
-    posts <- subredditPosts 100 "pokemontrades" New
-    liftIO $ forM_ posts (T.putStrLn . postTitle)
+    me <- myAccount
+    liftIO $ print me
