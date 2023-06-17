@@ -27,6 +27,8 @@ module Reddit
     runRedditTCleanup,
     runRedditTCleanup',
     RedditEnv,
+    getTokenFromEnv,
+    newEnv,
     -- | #credentials#
 
     -- * Authentication with account credentials
@@ -187,6 +189,22 @@ runRedditTCleanup actn env =
 -- | Same as @flip 'runRedditTCleanup'@.
 runRedditTCleanup' :: RedditEnv -> RedditT a -> IO a
 runRedditTCleanup' = flip runRedditTCleanup
+
+-- | Extract the current OAuth2 token being used.
+getTokenFromEnv :: RedditT Auth.Token
+getTokenFromEnv = do
+  tRef <- asks envTokenRef
+  liftIO $ R.readIORef tRef
+
+newEnv :: Auth.Token -> Text -> IO RedditEnv
+newEnv token userAgent = do
+  tokenRef <- R.newIORef token
+  pure $
+    RedditEnv
+      { envTokenRef = tokenRef,
+        envCredentials = Auth.NoCredentials,
+        envUserAgent = TE.encodeUtf8 userAgent
+      }
 
 -- $credentials
 --

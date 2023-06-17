@@ -46,6 +46,10 @@ data Credentials
         codeGrantRedirectUri :: Text,
         codeGrantCode :: Text
       }
+  | -- | Do not provide credentials. This is useful when \'reconstructing\' a
+    -- RedditEnv from an existing token (e.g. one stored in a database) using
+    -- 'newEnv'.
+    NoCredentials
 
 -- * OAuth2 scopes
 
