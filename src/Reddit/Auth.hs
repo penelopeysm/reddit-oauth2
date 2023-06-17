@@ -12,6 +12,8 @@ module Reddit.Auth
     AuthUrlParams (..),
     mkRedditAuthURL,
     Scope (..),
+    parseScopes,
+    showScopes,
     allScopes,
     Duration (..),
   )
