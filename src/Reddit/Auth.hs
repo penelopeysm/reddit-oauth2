@@ -104,8 +104,8 @@ data Credentials
         codeGrantCode :: Text
       }
   | -- | Do not provide credentials. This is used when \'reconstructing\' a
-    -- 'RedditEnv' from an existing token (e.g. one stored in a database) using
-    -- 'mkEnvFromToken'. __You should not need to use this.__
+    -- 'Reddit.RedditEnv' from an existing token (e.g. one stored in a database)
+    -- using 'Reddit.mkEnvFromToken'. __You should not need to use this.__
     NoCredentials
 
 -- * OAuth2 scopes
@@ -186,6 +186,8 @@ data Scope
 allScopes :: S.Set Scope
 allScopes = S.fromList [minBound .. maxBound]
 
+-- | Parse a canonical text list of scopes, which is part of the JSON returned
+-- by the Reddit authorisation server, into a set of known @Scope@s.
 parseScopes :: Text -> S.Set Scope
 parseScopes t = case T.split (\c -> c == ',' || c == ' ') t of
   [] -> S.empty
@@ -223,6 +225,8 @@ parseScopes t = case T.split (\c -> c == ',' || c == ' ') t of
     "wikiread" -> S.singleton ScopeWikiRead
   xs -> mconcat (map parseScopes xs)
 
+-- | Construct a canonical text representation of a set of @Scope@s, which can
+-- be used as a query parameter for 'mkRedditAuthURL'.
 showScopes :: S.Set Scope -> Text
 showScopes = T.intercalate " " . map showOneScope . S.toList
   where
@@ -342,6 +346,7 @@ parseToken ti = do
         tokenRefreshToken = tknintRefreshToken ti
       }
 
+-- | Get a token using credentials. This is the core of 'Reddit.authenticate'.
 getToken :: Credentials -> ByteString -> IO Token
 getToken creds ua = getTokenInternal creds ua >>= parseToken
 

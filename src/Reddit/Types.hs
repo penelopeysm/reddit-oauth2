@@ -380,6 +380,7 @@ removeFromTrees c (t : ts) = case rmv c t of
 
 -- Account
 
+-- | A Reddit account.
 data Account = Account
   { accountId :: ID Account,
     -- | Username (without the @\/u\/@ prefix).
@@ -460,6 +461,7 @@ instance FromJSON Post where
 
 -- Subreddit
 
+-- | A subreddit.
 data Subreddit = Subreddit
   { subredditId :: ID Subreddit,
     -- | Subreddit name (without the @\/r\/@).
@@ -488,10 +490,14 @@ instance FromJSON Subreddit where
 
 -- Award
 
+-- | A Reddit award. Not implemented yet.
 data Award = Award
   {awardId :: ID Award}
   deriving (Eq, Ord, Show)
 
+-- Message
+
+-- | A Reddit message (these refer to direct messages, not chat). Not implemented yet.
 data Message = Message
   {messageId :: ID Message}
   deriving (Eq, Ord, Show)

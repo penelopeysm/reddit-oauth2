@@ -60,9 +60,6 @@ module Reddit
     expandTreeFully,
 
     -- * Accounts (i.e. users)
-
-    --
-    -- $accounts
     Reddit.Types.Account (..),
     myAccount,
     getAccounts,
@@ -70,9 +67,6 @@ module Reddit
     getAccountByName,
 
     -- * Posts
-
-    --
-    -- $posts
     Reddit.Types.Post (..),
     getPosts,
     getPost,
@@ -86,15 +80,9 @@ module Reddit
     approve,
 
     -- * Messages
-
-    --
-    -- $messages
     Reddit.Types.Message (..),
 
     -- * Subreddits
-
-    --
-    -- $subreddits
     Reddit.Types.Subreddit (..),
     getSubreddits,
     getSubreddit,
@@ -102,9 +90,6 @@ module Reddit
     getSubredditByName,
 
     -- * Awards
-
-    --
-    -- $awards
     Reddit.Types.Award (..),
 
     -- * Streams #streams#
@@ -244,19 +229,19 @@ mkEnvFromToken token userAgent = do
 --
 -- * Most Reddit bots, or scripts, only require you to authenticate as a single
 -- user (which may be a bot account). In this case, you can simply log in with
--- your account credentials, using the 'OwnerCredentials' constructor. If you
--- are not sure what you are doing, this is probably what you want.
+-- your account credentials, using the 'Auth.OwnerCredentials' constructor. If
+-- you are not sure what you are doing, this is probably what you want.
 --
 -- * If you are instead building an application which is meant to be used by
 -- other people (e.g. a web app to let visitors analyse their posts), then you
 -- need to authenticate via the 'code grant' method, using the
--- 'CodeGrantCredentials' constructor.
+-- 'Auth.CodeGrantCredentials' constructor.
 --
--- In either case, you need to construct the appropriate 'Credentials' and pass
--- them to the 'authenticate' function, which will give you a 'RedditEnv' value
--- that you can then use to query Reddit.
+-- In either case, you need to construct the appropriate 'Auth.Credentials' and
+-- pass them to the 'authenticate' function, which will give you a 'RedditEnv'
+-- value that you can then use to query Reddit.
 
--- | Once you have set up your 'Credentials', you can use this function to
+-- | Once you have set up your 'Auth.Credentials', you can use this function to
 -- exchange them for a token contained inside a 'RedditEnv', which can then be
 -- used to perform all Reddit queries.
 authenticate ::
@@ -584,9 +569,6 @@ expandTreeFully pid trees = case getFirstMore trees of
     let sz' = sum (map treeSize trees')
     expandTreeFully pid trees'
 
--- $accounts
--- Accounts.
-
 -- | Fetch the account of the currently logged-in user.
 myAccount :: RedditT Account
 myAccount = withTokenCheck $ do
@@ -741,14 +723,6 @@ approve id = withTokenCheck $ do
     let body_params = "id" =: fullName
     void $ req POST uri (ReqBodyUrlEnc body_params) ignoreResponse uat
 
--- $messages
---
--- Messages aren't implemented yet.
-
--- $subreddits
---
--- Subreddits.
-
 -- | Fetch a list of subreddits by their IDs. More efficient than @map
 -- getSubreddit@ because it only makes one API call.
 getSubreddits :: [ID Subreddit] -> RedditT [Subreddit]
@@ -789,10 +763,6 @@ getSubredditByName s_name = do
   case srd of
     [s] -> pure s
     _ -> fail "Reddit response had incorrect length"
-
--- $awards
---
--- Awards aren't implemented yet.
 
 -- $streams
 --
@@ -850,7 +820,7 @@ streamInner settings queue cb cbInit src = do
 --
 -- You can adjust the frequency with which the stream is refreshed, and
 -- secondly, the number of \'seen\' items which are stored in memory. These can
--- be changed using the 'delay' and 'storageSize' fields in the
+-- be changed using the 'streamsDelay' and 'streamsStorageSize' fields in the
 -- 'StreamSettings' used.
 stream ::
   (Eq a) =>
