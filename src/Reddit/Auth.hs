@@ -367,10 +367,18 @@ data Duration = Temporary | Permanent deriving (Eq, Ord, Show)
 data AuthUrlParams = AuthUrlParams
   { -- | This is the client ID for your app.
     authUrlClientID :: Text,
-    -- | This can be any text value you want. If the user is successfully
-    -- authorised, they will be sent back to your redirect URI, and the same
-    -- state will be included as a query parameter.
-    authUrlState :: Maybe Text,
+    -- | This can be any text value you want, and must be different for every
+    -- user you are authenticating. If the user authorises your app, they will
+    -- be sent back to your redirect URI, and the same state will be included as
+    -- a query parameter. You should check that the returned state matches the
+    -- one which you specified here.
+    --
+    -- In principle, this is not mandatory. However, it is really bad practice
+    -- to not use it, as it makes you vulnerable to CSRF attacks. See, e.g.,
+    -- [Section 10.12 of the OAuth2
+    -- RFC](https://datatracker.ietf.org/doc/html/rfc6749#section-10.12). So,
+    -- this library forces you to specify it.
+    authUrlState :: Text,
     -- | The URI which users will be sent back to after logging in. This must
     -- match the redirect URI set up in <https://reddit.com/prefs/apps>.
     authUrlRedirectUri :: Text,
@@ -407,20 +415,16 @@ mkRedditAuthURL params mobile =
         durationVal <- URI.mkQueryValue (T.toLower . T.pack . show $ authUrlDuration params)
         scopeKey <- URI.mkQueryKey "scope"
         scopeVal <- URI.mkQueryValue (showScopes $ authUrlScopes params)
-        stateParam <- case authUrlState params of
-          Nothing -> pure []
-          Just state -> do
-            stateKey <- URI.mkQueryKey "state"
-            stateVal <- URI.mkQueryValue state
-            pure [URI.QueryParam stateKey stateVal]
+        stateKey <- URI.mkQueryKey "state"
+        stateVal <- URI.mkQueryValue (authUrlState params)
         let params =
               [ URI.QueryParam clientIDKey clientIDVal,
                 URI.QueryParam typeKey typeVal,
                 URI.QueryParam redirectKey redirectVal,
                 URI.QueryParam durationKey durationVal,
-                URI.QueryParam scopeKey scopeVal
+                URI.QueryParam scopeKey scopeVal,
+                URI.QueryParam stateKey stateVal
               ]
-                ++ stateParam
         pure $ baseUri {URI.uriQuery = params}
    in case maybeUri of
         Nothing -> error "mkRedditAuthURL failed"
