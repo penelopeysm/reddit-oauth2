@@ -29,7 +29,7 @@ module Reddit
     runRedditTCleanup',
     revokeToken,
 
-    -- * Manual environment management
+    -- ** Manual environment management
     -- $env_management
     getTokenFromEnv,
     mkEnvFromToken,
@@ -115,9 +115,8 @@ module Reddit
     stream',
     postStream,
     commentStream,
-    -- | #listings#
 
-    -- * Listings
+    -- * Listings #listings#
     -- $listings
 
     -- * Other types
@@ -475,7 +474,7 @@ addNewComment x body = withTokenCheck $ do
 -- | Get the most recent comments by a user.
 accountComments ::
   -- | Number of comments to fetch (maximum 1000). See [the listings
-  -- section](#listings) for an explanation of this parameter.
+  -- section](#g:listings) for an explanation of this parameter.
   Int ->
   -- | Username (without the @\/u\/@).
   Text ->
@@ -487,7 +486,7 @@ accountComments n uname =
 -- | Get the most recent comments on a subreddit.
 subredditComments ::
   -- | Number of comments to fetch (maximum 1000). See [the listings
-  -- section](#listings) for an explanation of this parameter.
+  -- section](#g:listings) for an explanation of this parameter.
   Int ->
   -- | Subreddit name (without the @\/r\/@).
   Text ->
@@ -646,7 +645,7 @@ getPost = getThingByID
 -- | Get the most recent posts by a user.
 accountPosts ::
   -- | Number of posts to fetch (maximum 1000). See [the listings
-  -- section](#listings) for an explanation of this parameter.
+  -- section](#g:listings) for an explanation of this parameter.
   Int ->
   -- | Username (without the @\/u\/@).
   Text ->
@@ -659,7 +658,7 @@ accountPosts n uname = do
 -- specified in the @SubredditSort@ argument.
 subredditPosts ::
   -- | Number of posts to fetch (maximum 1000). See [the listings
-  -- section](#listings) for an explanation of this parameter.
+  -- section](#g:listings) for an explanation of this parameter.
   Int ->
   -- | Subreddit name (without the @\/r\/@).
   Text ->
