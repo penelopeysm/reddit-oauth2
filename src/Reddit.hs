@@ -10,8 +10,8 @@
 --
 -- @reddit-oauth2@ provides a collection of functions to query the Reddit OAuth2 API.
 --
--- It is currently very primitive, but contains enough stuff to let you make a
--- bot that replies to certain phrases found in comments / posts (which is a
+-- It is not currently fully-fledged, but contains enough stuff to let you make
+-- a bot that replies to certain phrases found in comments / posts (which is a
 -- very common use case). If you are interested in this specific use case, the
 -- fastest way to get up to scratch is probably to see the example in the
 -- "Reddit.Example" module.
