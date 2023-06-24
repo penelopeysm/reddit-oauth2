@@ -31,26 +31,81 @@ import Network.HTTP.Req
 import Reddit.Types
 import qualified Text.URI as URI
 
--- | A record containing the credentials needed to authenticate with the OAuth2
--- API.
+-- | The @Credentials@ type contains all the information you need to
+-- authenticate with the Reddit API.
 data Credentials
-  = -- | 'Resource owner' flow, mainly for personal-use scripts.
+  = -- | __'Resource owner' flow__
+    --
+    -- Formally, this is the 'Resource Owner Password Credentials Grant' for
+    -- OAuth 2.0, which is described in [Section 4.3 of IETF RFC
+    -- 6749](https://datatracker.ietf.org/doc/html/rfc6749#section-4.3).
+    --
+    -- To authenticate in this manner, you will need a username and password for
+    -- a Reddit account, plus a client ID and client secret associated with a
+    -- Reddit app. The username in question must be listed as a developer of the
+    -- app. You can set up a new app by:
+    --
+    -- 1. Log in using the account you want to post or query Reddit as (this
+    -- may be a bot account, for example).
+    --
+    -- 2. Navigate to <https://www.reddit.com/prefs/apps>
+    --
+    -- 3. Click \'create another app\' at the bottom and select the \'script\'
+    -- radio button
+    --
+    -- 4. Fill in the required details. For a personal script, the redirect URI
+    -- is not important, set it to anything you like.
+    --
+    -- 5. Take note of the app ID (a string with random characters) and the
+    -- secret (the same but longer). These become, respectively,  @clientID@ and
+    -- @clientSecret@.
+    --
+    -- 6. @username@ and @password@ are the Reddit login credentials of the
+    -- account you are using.
+    --
+    -- /Note:/ __Do NOT ever share your password or the client secret publicly!__
+    --
+    -- See also:
+    -- <https://github.com/reddit-archive/reddit/wiki/OAuth2-Quick-Start-Example>
     OwnerCredentials
       { ownerUsername :: Text,
         ownerPassword :: Text,
         ownerClientId :: Text,
         ownerClientSecret :: Text
       }
-  | -- | 'Authorisation code' flow, mainly for web apps.
+  | -- | __'Code grant' flow__
+    --
+    -- Formally, this is the 'Authorisation Code Grant' for OAuth 2.0, which is
+    -- described in [Section 4.1 of IETF RFC
+    -- 6749](https://datatracker.ietf.org/doc/html/rfc6749#section-4.1).
+    --
+    -- Begin by [setting up a new Reddit app](https://www.reddit.com/prefs/apps)
+    -- in the same way as for the 'resource owner' flow above. Then:
+    --
+    -- 1. 'codeGrantClientId' and 'codeGrantClientSecret' are simply the 'app ID'
+    -- and 'app secret' from the Reddit app.
+    --
+    -- 2. 'codeGrantRedirectUri' is the redirect URI you specified when setting
+    -- up the app. Note that this must match exactly.
+    --
+    -- 3. To obtain 'codeGrantCode', you must first construct the Reddit
+    -- authentication link using 'mkRedditAuthURL'. Send your user to this link,
+    -- and they will be greeted with a Reddit page asking them to authorise your
+    -- app. When they click \'allow\', Reddit will send the user back to the
+    -- redirect URI which you specified, along with a \'code\' query parameter
+    -- in the URI. You should then parse this and set it as 'codeGrantCode'.
+    --
+    -- See also:
+    -- <https://github.com/reddit-archive/reddit/wiki/OAuth2>
     CodeGrantCredentials
       { codeGrantClientId :: Text,
         codeGrantClientSecret :: Text,
         codeGrantRedirectUri :: Text,
         codeGrantCode :: Text
       }
-  | -- | Do not provide credentials. This is useful when \'reconstructing\' a
-    -- RedditEnv from an existing token (e.g. one stored in a database) using
-    -- 'newEnv'.
+  | -- | Do not provide credentials. This is used when \'reconstructing\' a
+    -- 'RedditEnv' from an existing token (e.g. one stored in a database) using
+    -- 'mkEnvFromToken'. __You should not need to use this.__
     NoCredentials
 
 -- * OAuth2 scopes
@@ -61,16 +116,17 @@ data Credentials
 -- being requested.
 --
 -- To see which scope(s) are required by each endpoint, see
--- https://www.reddit.com/dev/api/oauth. Note that this library implements only
--- a small subset of endpoints, so most of these are not very useful right now.
+-- <https://www.reddit.com/dev/api/oauth>. Note that this library implements
+-- only a small subset of endpoints, so most of these are not very useful right
+-- now.
 --
--- You can obtain this list of scopes via https://reddit.com/api/v1/scopes.
+-- You can obtain this list of scopes via <https://reddit.com/api/v1/scopes>.
 data Scope
   = -- | Spend the logged in user's Reddit gold.
     ScopeCreddits
   | -- | Access mod notes for subreddits moderated by the logged in user.
     ScopeModNote
-  | -- | Add/remove users to/from approved user lists, ban/unban, and mute/unmute users on subreddits moderated by the logged in user.
+  | -- | Add\/remove users to\/from approved user lists, ban\/unban, and mute\/unmute users on subreddits moderated by the logged in user.
     ScopeModContributors
   | -- | Access and manage modmail for subreddits moderated by the logged in user.
     ScopeModMail
@@ -293,24 +349,32 @@ getToken creds ua = getTokenInternal creds ua >>= parseToken
 
 -- | This should be chosen depending on whether your app needs a temporary token
 -- (i.e. user must authenticate again after the token expires), or a permanent
--- one (i.e. user does not need to authenticateagain).
+-- one (i.e. user does not need to authenticate again).
 --
--- Internally, permanent tokens are handled by requesting for a 'refresh token'
--- when the existing one expires.
+-- Internally, permanent tokens are handled by requesting a refresh token when
+-- the existing one expires.
 data Duration = Temporary | Permanent deriving (Eq, Ord, Show)
 
 -- | The information required for your app to construct a link for the user to
 -- 'authorise with Reddit'.
+--
+-- This is only required for the 'code grant' flow.
 data AuthUrlParams = AuthUrlParams
   { -- | This is the client ID for your app.
     authUrlClientID :: Text,
-    -- | This can be any text value you want. If the user is successfully authorised, they will be sent back to your redirect URI, and the same state will be included as a query parameter (if it was passed here).
+    -- | This can be any text value you want. If the user is successfully
+    -- authorised, they will be sent back to your redirect URI, and the same
+    -- state will be included as a query parameter.
     authUrlState :: Maybe Text,
-    -- | The URI which users will be sent back to after logging in. This must match the redirect URI set up in https://reddit.com/prefs/apps.
+    -- | The URI which users will be sent back to after logging in. This must
+    -- match the redirect URI set up in <https://reddit.com/prefs/apps>.
     authUrlRedirectUri :: Text,
-    -- | 'Temporary' or 'Permanent', depending on how long you need your user to be logged in for. Temporary tokens last for 1 hour, after which the user must re-authenticate if they want to continue using your app.
+    -- | 'Temporary' or 'Permanent', depending on how long you need your user to
+    -- be logged in for. Temporary tokens last for 1 hour, after which the user
+    -- must re-authenticate if they want to continue using your app.
     authUrlDuration :: Duration,
-    -- | The OAuth2 scopes that you need. This depends on what your app does on behalf of its users. See 'Scope' for the full list.
+    -- | The OAuth2 scopes that you need. This depends on what your app does on
+    -- behalf of its users. See 'Scope' for the full list.
     authUrlScopes :: S.Set Scope
   }
 

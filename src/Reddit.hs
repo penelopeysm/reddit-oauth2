@@ -22,23 +22,22 @@
 module Reddit
   ( -- * The @RedditT@ monad
     RedditT (..),
+    RedditEnv,
     runRedditT,
     runRedditT',
     runRedditTCleanup,
     runRedditTCleanup',
-    RedditEnv,
-    getTokenFromEnv,
-    newEnv,
-    -- | #credentials#
-
-    -- * Authentication with account credentials
-    -- $credentials
-    Auth.Credentials (..),
-    authenticate,
     revokeToken,
 
-    -- * Authentication with code flow
-    -- $code-flow
+    -- * Manual environment management
+    -- $env_management
+    getTokenFromEnv,
+    mkEnvFromToken,
+
+    -- * Authentication #authentication#
+    -- $auth
+    Auth.Credentials (..),
+    authenticate,
     Auth.AuthUrlParams (..),
     Auth.mkRedditAuthURL,
     Auth.Scope (..),
@@ -107,9 +106,8 @@ module Reddit
     --
     -- $awards
     Reddit.Types.Award (..),
-    -- | #streams#
 
-    -- * Streams
+    -- * Streams #streams#
     -- $streams
     StreamSettings (..),
     defaultStreamSettings,
@@ -153,8 +151,11 @@ import qualified Reddit.Auth as Auth
 import qualified Reddit.Queue as Q
 import Reddit.Types
 
--- | Everything required to query the Reddit API. In principle, you should not
--- need to edit anything here, so the field accessors are not exported.
+-- | Everything required to query the Reddit API.
+--
+-- This is a record type. However, in principle, you should not need to edit
+-- anything here, so the field accessors are not exported. If you need to
+-- extract the token, you can use 'getTokenFromEnv'.
 data RedditEnv = RedditEnv
   { -- | OAuth2 token contents.
     envTokenRef :: R.IORef Auth.Token,
@@ -169,13 +170,27 @@ data RedditEnv = RedditEnv
 type RedditT = ReaderT RedditEnv IO
 
 -- | Run a Reddit computation using a @RedditEnv@ value obtained through
--- authentication (see [Authentication](#credentials)).
+-- authentication (see [Authentication](#g:authentication)).
 runRedditT :: RedditT a -> RedditEnv -> IO a
 runRedditT = runReaderT
 
 -- | @runRedditT'@ is @flip 'runRedditT'@ and is slightly more ergonomic.
 runRedditT' :: RedditEnv -> RedditT a -> IO a
 runRedditT' = flip runReaderT
+
+-- | Revoke an access token contained in a @RedditEnv@, rendering it unusable.
+-- If you want to continue performing queries after this, you will need to
+-- generate a new @RedditEnv@.
+revokeToken :: RedditEnv -> IO ()
+revokeToken env = do
+  t <- R.readIORef (envTokenRef env)
+  uat <- withUAToken env
+  void $ runReq defaultHttpConfig $ do
+    let uri = https "www.reddit.com" /: "api" /: "v1" /: "revoke_token"
+    let body_params =
+          "token" =: TE.decodeUtf8 (Auth.token t)
+            <> "token_type_hint" =: TE.decodeUtf8 (Auth.tokenType t)
+    req POST uri (ReqBodyUrlEnc body_params) ignoreResponse uat
 
 -- | Run a Reddit computation, and additionally clean up the @RedditEnv@ value
 -- by revoking the active access token after the computation finishes.
@@ -190,14 +205,27 @@ runRedditTCleanup actn env =
 runRedditTCleanup' :: RedditEnv -> RedditT a -> IO a
 runRedditTCleanup' = flip runRedditTCleanup
 
+-- $env_management
+-- For more complicated use cases, you will almost certainly have to perform
+-- more manual management of the @RedditEnv@ value. Specifically, you will want
+-- to extract tokens from envs (for example, to store them in a database), and
+-- re-generate new envs from existing tokens.
+--
+-- The functions in this section aim to make this process smoother.
+
 -- | Extract the current OAuth2 token being used.
 getTokenFromEnv :: RedditT Auth.Token
 getTokenFromEnv = do
   tRef <- asks envTokenRef
   liftIO $ R.readIORef tRef
 
-newEnv :: Auth.Token -> Text -> IO RedditEnv
-newEnv token userAgent = do
+-- | Yada.
+mkEnvFromToken ::
+  Auth.Token ->
+  -- | User-agent
+  Text ->
+  IO RedditEnv
+mkEnvFromToken token userAgent = do
   tokenRef <- R.newIORef token
   pure $
     RedditEnv
@@ -206,42 +234,32 @@ newEnv token userAgent = do
         envUserAgent = TE.encodeUtf8 userAgent
       }
 
--- $credentials
+-- $auth
+-- The first step to querying the Reddit API is to authenticate with Reddit.
+-- (Technically, you don't /have/ to; however, you will be subjected to a much
+-- lower rate limit. This library does not support unauthenticated usage of the
+-- Reddit API.)
 --
--- This section describes the credentials needed for using the Reddit API as a
--- \'script\'. Specifically, if you are developing an application exclusively
--- for personal use, then this is suitable. Most Reddit bots fall under this
--- case.
+-- The method in which you authenticate will depend on the type of application
+-- you are building.
 --
--- Formally, this is the 'Resource Owner Password Credentials Grant' for OAuth
--- 2.0, which is described in [Section 4.3 of IETF RFC
--- 6749](https://datatracker.ietf.org/doc/html/rfc6749#section-4.3).
+-- * Most Reddit bots, or scripts, only require you to authenticate as a single
+-- user (which may be a bot account). In this case, you can simply log in with
+-- your account credentials, using the 'OwnerCredentials' constructor. If you
+-- are not sure what you are doing, this is probably what you want.
 --
--- To authenticate in this manner, you will need a username and password for a
--- Reddit account, plus a client ID and client secret associated with a Reddit
--- app. The username in question must be listed as a developer of the app. You
--- can set up a new app by:
+-- * If you are instead building an application which is meant to be used by
+-- other people (e.g. a web app to let visitors analyse their posts), then you
+-- need to authenticate via the 'code grant' method, using the
+-- 'CodeGrantCredentials' constructor.
 --
---   1. Log in using the account you want to post or query Reddit as (this may be
---      a bot account, for example)
---   2. Navigate to <https://www.reddit.com/prefs/apps>
---   3. Click \'create another app\' at the bottom and select the \'script\' radio
---      button
---   4. Fill in the required details. For a personal script, the redirect URI is
---      not important, set it to anything you like.
---   5. Take note of the app ID (a string with random characters) and the secret
---      (the same but longer). These become, respectively,  @clientID@ and
---      @clientSecret@.
---   6. @username@ and @password@ are the Reddit login credentials of the account
---      you are using.
---
--- /Note:/ __Do NOT ever share your password or the client secret publicly!__
---
--- See also: <https://github.com/reddit-archive/reddit/wiki/OAuth2-Quick-Start-Example>
+-- In either case, you need to construct the appropriate 'Credentials' and pass
+-- them to the 'authenticate' function, which will give you a 'RedditEnv' value
+-- that you can then use to query Reddit.
 
--- | Authenticate using credentials, which gives you a token contained inside a
--- 'RedditEnv'. This @RedditEnv@ value is required to perform all Reddit
--- queries.
+-- | Once you have set up your 'Credentials', you can use this function to
+-- exchange them for a token contained inside a 'RedditEnv', which can then be
+-- used to perform all Reddit queries.
 authenticate ::
   Auth.Credentials ->
   -- | Your user-agent. [Reddit
@@ -287,8 +305,8 @@ withTokenCheck action = do
     (liftIO $ reauthenticate env)
   action
 
-oauth :: Text
-oauth = "oauth.reddit.com"
+oauthUri :: Text
+oauthUri = "oauth.reddit.com"
 
 -- | Convenience function to generate HTTP headers required for basic
 -- authentication.
@@ -296,28 +314,6 @@ withUAToken :: (MonadIO m) => RedditEnv -> m (Option 'Https)
 withUAToken env = do
   t <- liftIO $ R.readIORef (envTokenRef env)
   pure $ header "user-agent" (envUserAgent env) <> oAuth2Bearer (Auth.token t)
-
--- | Revoke an access token contained in a @RedditEnv@, rendering it unusable.
--- If you want to continue performing queries after this, you will need to
--- generate a new @RedditEnv@.
-revokeToken :: RedditEnv -> IO ()
-revokeToken env = do
-  t <- R.readIORef (envTokenRef env)
-  uat <- withUAToken env
-  void $ runReq defaultHttpConfig $ do
-    let uri = https "www.reddit.com" /: "api" /: "v1" /: "revoke_token"
-    let body_params =
-          "token" =: TE.decodeUtf8 (Auth.token t)
-            <> "token_type_hint" =: TE.decodeUtf8 (Auth.tokenType t)
-    req POST uri (ReqBodyUrlEnc body_params) ignoreResponse uat
-
--- $code-flow
---
--- Formally, this is the 'Authorisation Code Grant' for OAuth 2.0, which is
--- described in [Section 4.1 of IETF RFC
--- 6749](https://datatracker.ietf.org/doc/html/rfc6749#section-4.1).
---
--- Blah blah....
 
 -- $listings
 -- Listings are Reddit's way of paginating things (i.e. comments, posts, etc.).
@@ -344,7 +340,7 @@ revokeToken env = do
 --
 -- 1. Keep it to 100 or lower if you want it to complete within a single
 --    request. In particular, you probably don't want to make this greater than
---    100 if you're creating a [stream](#streams).
+--    100 if you're creating a [stream](#g:streams).
 -- 2. If you just want 'as many as possible', put 1000.
 -- 3. Don't bother putting anything larger than 1000.
 
@@ -422,7 +418,7 @@ getThingsByIDs ids = withTokenCheck $ do
   uat <- withUAToken env
   let fullNames = T.intercalate "," (map mkFullNameFromID ids)
   respBody <- liftIO $ runReq defaultHttpConfig $ do
-    let uri = https oauth /: "api" /: "info"
+    let uri = https oauthUri /: "api" /: "info"
     let params = uat <> "id" =: fullNames
     response <- req GET uri NoReqBody lbsResponse params
     pure (responseBody response)
@@ -472,7 +468,7 @@ addNewComment x body = withTokenCheck $ do
   uat <- withUAToken env
   let fullName = mkFullNameFromID x
   liftIO $ runReq defaultHttpConfig $ do
-    let uri = https oauth /: "api" /: "comment"
+    let uri = https oauthUri /: "api" /: "comment"
     let body_params = "thing_id" =: fullName <> "text" =: body
     void $ req POST uri (ReqBodyUrlEnc body_params) ignoreResponse uat
 
@@ -485,7 +481,7 @@ accountComments ::
   Text ->
   RedditT [Comment]
 accountComments n uname =
-  let uri = (https oauth /: "user" /: uname /: "comments")
+  let uri = (https oauthUri /: "user" /: uname /: "comments")
    in getListings n Nothing uri mempty
 
 -- | Get the most recent comments on a subreddit.
@@ -497,7 +493,7 @@ subredditComments ::
   Text ->
   RedditT [Comment]
 subredditComments n sr =
-  let uri = https oauth /: "r" /: sr /: "comments"
+  let uri = https oauthUri /: "r" /: sr /: "comments"
    in getListings n Nothing uri mempty
 
 -- | Retrieve a post, together with a tree of comments on it.
@@ -517,7 +513,7 @@ getPostWithComments (PostID p) = withTokenCheck $ do
   env <- ask
   uat <- withUAToken env
   respBody <- liftIO $ runReq defaultHttpConfig $ do
-    let uri = https oauth /: "comments" /: p
+    let uri = https oauthUri /: "comments" /: p
     response <- req GET uri NoReqBody lbsResponse uat
     pure (responseBody response)
   -- Reddit returns a JSON array where the first item is a listing containing
@@ -537,7 +533,7 @@ getMoreChildren pid cids =
       env <- ask
       uat <- withUAToken env
       respBody <- liftIO $ runReq defaultHttpConfig $ do
-        let uri = https oauth /: "api" /: "morechildren"
+        let uri = https oauthUri /: "api" /: "morechildren"
         let query_params =
               uat
                 <> "api_type" =: ("json" :: Text)
@@ -598,7 +594,7 @@ myAccount = withTokenCheck $ do
   env <- ask
   uat <- withUAToken env
   respBody <- liftIO $ runReq defaultHttpConfig $ do
-    let uri = https oauth /: "api" /: "v1" /: "me"
+    let uri = https oauthUri /: "api" /: "v1" /: "me"
     response <- req GET uri NoReqBody lbsResponse uat
     pure (responseBody response)
   -- This API endpoint is really weird, because the data it returns has a
@@ -624,7 +620,7 @@ getAccountByName uname = withTokenCheck $ do
   env <- ask
   uat <- withUAToken env
   respBody <- liftIO $ runReq defaultHttpConfig $ do
-    let uri = https oauth /: "user" /: uname /: "about"
+    let uri = https oauthUri /: "user" /: uname /: "about"
     response <- req GET uri NoReqBody lbsResponse uat
     pure (responseBody response)
   throwDecode respBody
@@ -656,7 +652,7 @@ accountPosts ::
   Text ->
   RedditT [Post]
 accountPosts n uname = do
-  let uri = https oauth /: "user" /: uname /: "submitted"
+  let uri = https oauthUri /: "user" /: uname /: "submitted"
    in getListings n Nothing uri mempty
 
 -- | Get the posts from the front page of a subreddit, with the ordering
@@ -686,7 +682,7 @@ subredditPosts n sr sort = do
         Rising -> ("rising", mempty)
         Top tf -> ("top", "t" =: timeframe_text tf)
         Controversial tf -> ("controversial", "t" =: timeframe_text tf)
-  let uri = https oauth /: "r" /: sr /: endpoint
+  let uri = https oauthUri /: "r" /: sr /: endpoint
    in getListings n Nothing uri tf_params
 
 -- | Edit the contents of a comment or a text post. You must be authenticated as
@@ -697,7 +693,7 @@ edit id newBody = withTokenCheck $ do
   env <- ask
   uat <- withUAToken env
   liftIO $ runReq defaultHttpConfig $ do
-    let uri = https oauth /: "api" /: "editusertext"
+    let uri = https oauthUri /: "api" /: "editusertext"
     let body_params = "thing_id" =: fullName <> "text" =: newBody
     void $ req POST uri (ReqBodyUrlEnc body_params) ignoreResponse uat
 
@@ -712,7 +708,7 @@ delete id = withTokenCheck $ do
   env <- ask
   uat <- withUAToken env
   liftIO $ runReq defaultHttpConfig $ do
-    let uri = https oauth /: "api" /: "del"
+    let uri = https oauthUri /: "api" /: "del"
     let body_params = "id" =: fullName
     void $ req POST uri (ReqBodyUrlEnc body_params) ignoreResponse uat
 
@@ -730,7 +726,7 @@ remove id isSpam = withTokenCheck $ do
   env <- ask
   uat <- withUAToken env
   liftIO $ runReq defaultHttpConfig $ do
-    let uri = https oauth /: "api" /: "remove"
+    let uri = https oauthUri /: "api" /: "remove"
     let body_params = "id" =: fullName <> "spam" =: spam
     void $ req POST uri (ReqBodyUrlEnc body_params) ignoreResponse uat
 
@@ -742,7 +738,7 @@ approve id = withTokenCheck $ do
   env <- ask
   uat <- withUAToken env
   liftIO $ runReq defaultHttpConfig $ do
-    let uri = https oauth /: "api" /: "approve"
+    let uri = https oauthUri /: "api" /: "approve"
     let body_params = "id" =: fullName
     void $ req POST uri (ReqBodyUrlEnc body_params) ignoreResponse uat
 
@@ -774,7 +770,7 @@ getSubredditsByName s_names = withTokenCheck $ do
   uat <- withUAToken env
   let allNames = T.intercalate "," s_names
   respBody <- liftIO $ runReq defaultHttpConfig $ do
-    let uri = https oauth /: "api" /: "info"
+    let uri = https oauthUri /: "api" /: "info"
     let req_params = uat <> "sr_name" =: allNames
     response <- req GET uri NoReqBody lbsResponse req_params
     pure (responseBody response)
