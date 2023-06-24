@@ -1190,25 +1190,26 @@ Foldable t =&gt;
 </span><span id="line-380"></span><span>
 </span><span id="line-381"></span><span class="hs-comment">-- Account</span><span>
 </span><span id="line-382"></span><span>
-</span><span id="line-383"></span><span class="hs-keyword">data</span><span> </span><span id="Account"><span class="annot"><a href="Reddit.Types.html#Account"><span class="hs-identifier hs-var">Account</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Account"><span class="annot"><a href="Reddit.Types.html#Account"><span class="hs-identifier hs-var">Account</span></a></span></span><span>
-</span><span id="line-384"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="accountId"><span class="annot"><span class="annottext">Account -&gt; ID Account
+</span><span id="line-383"></span><span class="hs-comment">-- | A Reddit account.</span><span>
+</span><span id="line-384"></span><span class="hs-keyword">data</span><span> </span><span id="Account"><span class="annot"><a href="Reddit.Types.html#Account"><span class="hs-identifier hs-var">Account</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Account"><span class="annot"><a href="Reddit.Types.html#Account"><span class="hs-identifier hs-var">Account</span></a></span></span><span>
+</span><span id="line-385"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="accountId"><span class="annot"><span class="annottext">Account -&gt; ID Account
 </span><a href="Reddit.Types.html#accountId"><span class="hs-identifier hs-var hs-var">accountId</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Reddit.Types.html#ID"><span class="hs-identifier hs-type">ID</span></a></span><span> </span><span class="annot"><a href="Reddit.Types.html#Account"><span class="hs-identifier hs-type">Account</span></a></span><span class="hs-special">,</span><span>
-</span><span id="line-385"></span><span>    </span><span class="hs-comment">-- | Username (without the @\/u\/@ prefix).</span><span>
-</span><span id="line-386"></span><span>    </span><span id="accountUsername"><span class="annot"><span class="annottext">Account -&gt; Text
+</span><span id="line-386"></span><span>    </span><span class="hs-comment">-- | Username (without the @\/u\/@ prefix).</span><span>
+</span><span id="line-387"></span><span>    </span><span id="accountUsername"><span class="annot"><span class="annottext">Account -&gt; Text
 </span><a href="Reddit.Types.html#accountUsername"><span class="hs-identifier hs-var hs-var">accountUsername</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/text-1.2.5.0/src"><span class="hs-identifier hs-type">Text</span></a></span><span class="hs-special">,</span><span>
-</span><span id="line-387"></span><span>    </span><span class="hs-comment">-- | The name that's shown on their profile. Empty if not set.</span><span>
-</span><span id="line-388"></span><span>    </span><span id="accountDisplayName"><span class="annot"><span class="annottext">Account -&gt; Text
+</span><span id="line-388"></span><span>    </span><span class="hs-comment">-- | The name that's shown on their profile. Empty if not set.</span><span>
+</span><span id="line-389"></span><span>    </span><span id="accountDisplayName"><span class="annot"><span class="annottext">Account -&gt; Text
 </span><a href="Reddit.Types.html#accountDisplayName"><span class="hs-identifier hs-var hs-var">accountDisplayName</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/text-1.2.5.0/src"><span class="hs-identifier hs-type">Text</span></a></span><span class="hs-special">,</span><span>
-</span><span id="line-389"></span><span>    </span><span id="accountLinkKarma"><span class="annot"><span class="annottext">Account -&gt; Int
+</span><span id="line-390"></span><span>    </span><span id="accountLinkKarma"><span class="annot"><span class="annottext">Account -&gt; Int
 </span><a href="Reddit.Types.html#accountLinkKarma"><span class="hs-identifier hs-var hs-var">accountLinkKarma</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/ghc-prim-0.8.0/src"><span class="hs-identifier hs-type">Int</span></a></span><span class="hs-special">,</span><span>
-</span><span id="line-390"></span><span>    </span><span id="accountCommentKarma"><span class="annot"><span class="annottext">Account -&gt; Int
+</span><span id="line-391"></span><span>    </span><span id="accountCommentKarma"><span class="annot"><span class="annottext">Account -&gt; Int
 </span><a href="Reddit.Types.html#accountCommentKarma"><span class="hs-identifier hs-var hs-var">accountCommentKarma</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/ghc-prim-0.8.0/src"><span class="hs-identifier hs-type">Int</span></a></span><span class="hs-special">,</span><span>
-</span><span id="line-391"></span><span>    </span><span id="accountTotalKarma"><span class="annot"><span class="annottext">Account -&gt; Int
+</span><span id="line-392"></span><span>    </span><span id="accountTotalKarma"><span class="annot"><span class="annottext">Account -&gt; Int
 </span><a href="Reddit.Types.html#accountTotalKarma"><span class="hs-identifier hs-var hs-var">accountTotalKarma</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/ghc-prim-0.8.0/src"><span class="hs-identifier hs-type">Int</span></a></span><span class="hs-special">,</span><span>
-</span><span id="line-392"></span><span>    </span><span id="accountCreatedTime"><span class="annot"><span class="annottext">Account -&gt; UTCTime
+</span><span id="line-393"></span><span>    </span><span id="accountCreatedTime"><span class="annot"><span class="annottext">Account -&gt; UTCTime
 </span><a href="Reddit.Types.html#accountCreatedTime"><span class="hs-identifier hs-var hs-var">accountCreatedTime</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/time-1.11.1.1/src"><span class="hs-identifier hs-type">UTCTime</span></a></span><span>
-</span><span id="line-393"></span><span>  </span><span class="hs-special">}</span><span>
-</span><span id="line-394"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679099778"><span id="local-6989586621679099788"><span class="annot"><span class="annottext">Account -&gt; Account -&gt; Bool
+</span><span id="line-394"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-395"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679099778"><span id="local-6989586621679099788"><span class="annot"><span class="annottext">Account -&gt; Account -&gt; Bool
 forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
 /= :: Account -&gt; Account -&gt; Bool
 $c/= :: Account -&gt; Account -&gt; Bool
@@ -1254,32 +1255,32 @@ $cshow :: Account -&gt; String
 showsPrec :: Int -&gt; Account -&gt; ShowS
 $cshowsPrec :: Int -&gt; Account -&gt; ShowS
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/base-4.16.4.0/src"><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></a></span></span></span></span><span class="hs-special">)</span><span>
-</span><span id="line-395"></span><span>
-</span><span id="line-396"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679099725"><span class="annot"><span class="hs-identifier hs-type">FromJSON</span></span><span> </span><span class="annot"><a href="Reddit.Types.html#Account"><span class="hs-identifier hs-type">Account</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
-</span><span id="line-397"></span><span>  </span><span id="local-6989586621679099693"><span class="annot"><span class="annottext">parseJSON :: Value -&gt; Parser Account
+</span><span id="line-396"></span><span>
+</span><span id="line-397"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679099725"><span class="annot"><span class="hs-identifier hs-type">FromJSON</span></span><span> </span><span class="annot"><a href="Reddit.Types.html#Account"><span class="hs-identifier hs-type">Account</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-398"></span><span>  </span><span id="local-6989586621679099693"><span class="annot"><span class="annottext">parseJSON :: Value -&gt; Parser Account
 </span><a href="#local-6989586621679099693"><span class="hs-identifier hs-var hs-var hs-var hs-var">parseJSON</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. String -&gt; (Object -&gt; Parser a) -&gt; Value -&gt; Parser a
 </span><span class="hs-identifier hs-var">withObject</span></span><span> </span><span class="annot"><span class="annottext">String
 </span><span class="hs-string">&quot;Account&quot;</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/base-4.16.4.0/src"><span class="hs-operator hs-var">$</span></a></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679099692"><span class="annot"><span class="annottext">Object
 </span><a href="#local-6989586621679099692"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-398"></span><span>    </span><span id="local-6989586621679099691"><span class="annot"><span class="annottext">Object
+</span><span id="line-399"></span><span>    </span><span id="local-6989586621679099691"><span class="annot"><span class="annottext">Object
 </span><a href="#local-6989586621679099691"><span class="hs-identifier hs-var">v</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Object
 </span><a href="#local-6989586621679099692"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. FromJSON a =&gt; Object -&gt; Key -&gt; Parser a
 </span><span class="hs-operator hs-var">.:</span></span><span> </span><span class="annot"><span class="annottext">Key
 </span><span class="hs-string">&quot;data&quot;</span></span><span>
-</span><span id="line-399"></span><span>    </span><span id="local-6989586621679099690"><span class="annot"><span class="annottext">ID Account
+</span><span id="line-400"></span><span>    </span><span id="local-6989586621679099690"><span class="annot"><span class="annottext">ID Account
 </span><a href="#local-6989586621679099690"><span class="hs-identifier hs-var">accountId</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Text -&gt; ID Account
 </span><a href="Reddit.Types.html#AccountID"><span class="hs-identifier hs-var">AccountID</span></a></span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/base-4.16.4.0/src"><span class="hs-operator hs-var">&lt;$&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">Object
 </span><a href="#local-6989586621679099691"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. FromJSON a =&gt; Object -&gt; Key -&gt; Parser a
 </span><span class="hs-operator hs-var">.:</span></span><span> </span><span class="annot"><span class="annottext">Key
 </span><span class="hs-string">&quot;id&quot;</span></span><span>
-</span><span id="line-400"></span><span>    </span><span id="local-6989586621679099689"><span class="annot"><span class="annottext">Text
+</span><span id="line-401"></span><span>    </span><span id="local-6989586621679099689"><span class="annot"><span class="annottext">Text
 </span><a href="#local-6989586621679099689"><span class="hs-identifier hs-var">accountUsername</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Object
 </span><a href="#local-6989586621679099691"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. FromJSON a =&gt; Object -&gt; Key -&gt; Parser a
 </span><span class="hs-operator hs-var">.:</span></span><span> </span><span class="annot"><span class="annottext">Key
 </span><span class="hs-string">&quot;name&quot;</span></span><span>
-</span><span id="line-401"></span><span>    </span><span id="local-6989586621679099688"><span class="annot"><span class="annottext">Text
+</span><span id="line-402"></span><span>    </span><span id="local-6989586621679099688"><span class="annot"><span class="annottext">Text
 </span><a href="#local-6989586621679099688"><span class="hs-identifier hs-var">accountDisplayName</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Object
 </span><a href="#local-6989586621679099691"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. FromJSON a =&gt; Object -&gt; Key -&gt; Parser a
 </span><span class="hs-operator hs-var">.:</span></span><span> </span><span class="annot"><span class="annottext">Key
@@ -1287,29 +1288,29 @@ $cshowsPrec :: Int -&gt; Account -&gt; ShowS
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/base-4.16.4.0/src"><span class="hs-operator hs-var">&gt;&gt;=</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. FromJSON a =&gt; Object -&gt; Key -&gt; Parser a
 </span><span class="hs-operator hs-var">.:</span></span><span> </span><span class="annot"><span class="annottext">Key
 </span><span class="hs-string">&quot;title&quot;</span></span><span class="hs-special">)</span><span>
-</span><span id="line-402"></span><span>    </span><span id="local-6989586621679099687"><span class="annot"><span class="annottext">Int
+</span><span id="line-403"></span><span>    </span><span id="local-6989586621679099687"><span class="annot"><span class="annottext">Int
 </span><a href="#local-6989586621679099687"><span class="hs-identifier hs-var">accountLinkKarma</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Object
 </span><a href="#local-6989586621679099691"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. FromJSON a =&gt; Object -&gt; Key -&gt; Parser a
 </span><span class="hs-operator hs-var">.:</span></span><span> </span><span class="annot"><span class="annottext">Key
 </span><span class="hs-string">&quot;link_karma&quot;</span></span><span>
-</span><span id="line-403"></span><span>    </span><span id="local-6989586621679099686"><span class="annot"><span class="annottext">Int
+</span><span id="line-404"></span><span>    </span><span id="local-6989586621679099686"><span class="annot"><span class="annottext">Int
 </span><a href="#local-6989586621679099686"><span class="hs-identifier hs-var">accountCommentKarma</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Object
 </span><a href="#local-6989586621679099691"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. FromJSON a =&gt; Object -&gt; Key -&gt; Parser a
 </span><span class="hs-operator hs-var">.:</span></span><span> </span><span class="annot"><span class="annottext">Key
 </span><span class="hs-string">&quot;comment_karma&quot;</span></span><span>
-</span><span id="line-404"></span><span>    </span><span id="local-6989586621679099685"><span class="annot"><span class="annottext">Int
+</span><span id="line-405"></span><span>    </span><span id="local-6989586621679099685"><span class="annot"><span class="annottext">Int
 </span><a href="#local-6989586621679099685"><span class="hs-identifier hs-var">accountTotalKarma</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Object
 </span><a href="#local-6989586621679099691"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. FromJSON a =&gt; Object -&gt; Key -&gt; Parser a
 </span><span class="hs-operator hs-var">.:</span></span><span> </span><span class="annot"><span class="annottext">Key
 </span><span class="hs-string">&quot;total_karma&quot;</span></span><span>
-</span><span id="line-405"></span><span>    </span><span id="local-6989586621679099684"><span class="annot"><span class="annottext">UTCTime
+</span><span id="line-406"></span><span>    </span><span id="local-6989586621679099684"><span class="annot"><span class="annottext">UTCTime
 </span><a href="#local-6989586621679099684"><span class="hs-identifier hs-var">accountCreatedTime</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">POSIXTime -&gt; UTCTime
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/time-1.11.1.1/src"><span class="hs-identifier hs-var">posixSecondsToUTCTime</span></a></span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/base-4.16.4.0/src"><span class="hs-operator hs-var">&lt;$&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">Object
 </span><a href="#local-6989586621679099691"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. FromJSON a =&gt; Object -&gt; Key -&gt; Parser a
 </span><span class="hs-operator hs-var">.:</span></span><span> </span><span class="annot"><span class="annottext">Key
 </span><span class="hs-string">&quot;created_utc&quot;</span></span><span>
-</span><span id="line-406"></span><span>    </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span id="line-407"></span><span>    </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/base-4.16.4.0/src"><span class="hs-identifier hs-var">pure</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/base-4.16.4.0/src"><span class="hs-operator hs-var">$</span></a></span><span> </span><span class="annot"><a href="Reddit.Types.html#Account"><span class="hs-identifier hs-type">Account</span></a></span><span> </span><span class="hs-special">{</span><span class="annot"><span class="annottext">Int
 Text
@@ -1330,48 +1331,48 @@ accountDisplayName :: Text
 accountUsername :: Text
 accountId :: ID Account
 </span><a href="#local-6989586621679099684"><span class="hs-glyph hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">..</span></a></span><span class="hs-special">}</span><span>
-</span><span id="line-407"></span><span>
-</span><span id="line-408"></span><span class="hs-comment">-- Post</span><span>
-</span><span id="line-409"></span><span>
-</span><span id="line-410"></span><span class="hs-comment">-- | A single post.</span><span>
-</span><span id="line-411"></span><span class="hs-comment">--</span><span>
-</span><span id="line-412"></span><span class="hs-comment">-- Note that the @Eq@ and @Ord@ instances for @Post@ only compare the post ID.</span><span>
-</span><span id="line-413"></span><span class="hs-keyword">data</span><span> </span><span id="Post"><span class="annot"><a href="Reddit.Types.html#Post"><span class="hs-identifier hs-var">Post</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Post"><span class="annot"><a href="Reddit.Types.html#Post"><span class="hs-identifier hs-var">Post</span></a></span></span><span>
-</span><span id="line-414"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="postId"><span class="annot"><span class="annottext">Post -&gt; ID Post
+</span><span id="line-408"></span><span>
+</span><span id="line-409"></span><span class="hs-comment">-- Post</span><span>
+</span><span id="line-410"></span><span>
+</span><span id="line-411"></span><span class="hs-comment">-- | A single post.</span><span>
+</span><span id="line-412"></span><span class="hs-comment">--</span><span>
+</span><span id="line-413"></span><span class="hs-comment">-- Note that the @Eq@ and @Ord@ instances for @Post@ only compare the post ID.</span><span>
+</span><span id="line-414"></span><span class="hs-keyword">data</span><span> </span><span id="Post"><span class="annot"><a href="Reddit.Types.html#Post"><span class="hs-identifier hs-var">Post</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Post"><span class="annot"><a href="Reddit.Types.html#Post"><span class="hs-identifier hs-var">Post</span></a></span></span><span>
+</span><span id="line-415"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="postId"><span class="annot"><span class="annottext">Post -&gt; ID Post
 </span><a href="Reddit.Types.html#postId"><span class="hs-identifier hs-var hs-var">postId</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Reddit.Types.html#ID"><span class="hs-identifier hs-type">ID</span></a></span><span> </span><span class="annot"><a href="Reddit.Types.html#Post"><span class="hs-identifier hs-type">Post</span></a></span><span class="hs-special">,</span><span>
-</span><span id="line-415"></span><span>    </span><span class="hs-comment">-- | Permalink.</span><span>
-</span><span id="line-416"></span><span>    </span><span id="postUrl"><span class="annot"><span class="annottext">Post -&gt; Text
+</span><span id="line-416"></span><span>    </span><span class="hs-comment">-- | Permalink.</span><span>
+</span><span id="line-417"></span><span>    </span><span id="postUrl"><span class="annot"><span class="annottext">Post -&gt; Text
 </span><a href="Reddit.Types.html#postUrl"><span class="hs-identifier hs-var hs-var">postUrl</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/text-1.2.5.0/src"><span class="hs-identifier hs-type">Text</span></a></span><span class="hs-special">,</span><span>
-</span><span id="line-417"></span><span>    </span><span id="postScore"><span class="annot"><span class="annottext">Post -&gt; Int
+</span><span id="line-418"></span><span>    </span><span id="postScore"><span class="annot"><span class="annottext">Post -&gt; Int
 </span><a href="Reddit.Types.html#postScore"><span class="hs-identifier hs-var hs-var">postScore</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/ghc-prim-0.8.0/src"><span class="hs-identifier hs-type">Int</span></a></span><span class="hs-special">,</span><span>
-</span><span id="line-418"></span><span>    </span><span class="hs-comment">-- | Username of the author (without the @\/u\/@).</span><span>
-</span><span id="line-419"></span><span>    </span><span id="postAuthor"><span class="annot"><span class="annottext">Post -&gt; Text
+</span><span id="line-419"></span><span>    </span><span class="hs-comment">-- | Username of the author (without the @\/u\/@).</span><span>
+</span><span id="line-420"></span><span>    </span><span id="postAuthor"><span class="annot"><span class="annottext">Post -&gt; Text
 </span><a href="Reddit.Types.html#postAuthor"><span class="hs-identifier hs-var hs-var">postAuthor</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/text-1.2.5.0/src"><span class="hs-identifier hs-type">Text</span></a></span><span class="hs-special">,</span><span>
-</span><span id="line-420"></span><span>    </span><span class="hs-comment">-- | Can be @Nothing@ if the account was deleted.</span><span>
-</span><span id="line-421"></span><span>    </span><span id="postAuthorId"><span class="annot"><span class="annottext">Post -&gt; Maybe (ID Account)
+</span><span id="line-421"></span><span>    </span><span class="hs-comment">-- | Can be @Nothing@ if the account was deleted.</span><span>
+</span><span id="line-422"></span><span>    </span><span id="postAuthorId"><span class="annot"><span class="annottext">Post -&gt; Maybe (ID Account)
 </span><a href="Reddit.Types.html#postAuthorId"><span class="hs-identifier hs-var hs-var">postAuthorId</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/base-4.16.4.0/src"><span class="hs-identifier hs-type">Maybe</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Reddit.Types.html#ID"><span class="hs-identifier hs-type">ID</span></a></span><span> </span><span class="annot"><a href="Reddit.Types.html#Account"><span class="hs-identifier hs-type">Account</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span>
-</span><span id="line-422"></span><span>    </span><span id="postTitle"><span class="annot"><span class="annottext">Post -&gt; Text
+</span><span id="line-423"></span><span>    </span><span id="postTitle"><span class="annot"><span class="annottext">Post -&gt; Text
 </span><a href="Reddit.Types.html#postTitle"><span class="hs-identifier hs-var hs-var">postTitle</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/text-1.2.5.0/src"><span class="hs-identifier hs-type">Text</span></a></span><span class="hs-special">,</span><span>
-</span><span id="line-423"></span><span>    </span><span class="hs-comment">-- | Empty string if not a text post.</span><span>
-</span><span id="line-424"></span><span>    </span><span id="postBody"><span class="annot"><span class="annottext">Post -&gt; Text
+</span><span id="line-424"></span><span>    </span><span class="hs-comment">-- | Empty string if not a text post.</span><span>
+</span><span id="line-425"></span><span>    </span><span id="postBody"><span class="annot"><span class="annottext">Post -&gt; Text
 </span><a href="Reddit.Types.html#postBody"><span class="hs-identifier hs-var hs-var">postBody</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/text-1.2.5.0/src"><span class="hs-identifier hs-type">Text</span></a></span><span class="hs-special">,</span><span>
-</span><span id="line-425"></span><span>    </span><span class="hs-comment">-- | For a link post, this is the link. For a text post, this is the same as @url@.</span><span>
-</span><span id="line-426"></span><span>    </span><span id="postContentUrl"><span class="annot"><span class="annottext">Post -&gt; Text
+</span><span id="line-426"></span><span>    </span><span class="hs-comment">-- | For a link post, this is the link. For a text post, this is the same as @url@.</span><span>
+</span><span id="line-427"></span><span>    </span><span id="postContentUrl"><span class="annot"><span class="annottext">Post -&gt; Text
 </span><a href="Reddit.Types.html#postContentUrl"><span class="hs-identifier hs-var hs-var">postContentUrl</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/text-1.2.5.0/src"><span class="hs-identifier hs-type">Text</span></a></span><span class="hs-special">,</span><span>
-</span><span id="line-427"></span><span>    </span><span class="hs-comment">-- | None if not flaired.</span><span>
-</span><span id="line-428"></span><span>    </span><span id="postFlairText"><span class="annot"><span class="annottext">Post -&gt; Maybe Text
+</span><span id="line-428"></span><span>    </span><span class="hs-comment">-- | None if not flaired.</span><span>
+</span><span id="line-429"></span><span>    </span><span id="postFlairText"><span class="annot"><span class="annottext">Post -&gt; Maybe Text
 </span><a href="Reddit.Types.html#postFlairText"><span class="hs-identifier hs-var hs-var">postFlairText</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/base-4.16.4.0/src"><span class="hs-identifier hs-type">Maybe</span></a></span><span> </span><span class="annot"><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/text-1.2.5.0/src"><span class="hs-identifier hs-type">Text</span></a></span><span class="hs-special">,</span><span>
-</span><span id="line-429"></span><span>    </span><span class="hs-comment">-- | Name of the subreddit (without the @\/r\/@)</span><span>
-</span><span id="line-430"></span><span>    </span><span id="postSubreddit"><span class="annot"><span class="annottext">Post -&gt; Text
+</span><span id="line-430"></span><span>    </span><span class="hs-comment">-- | Name of the subreddit (without the @\/r\/@)</span><span>
+</span><span id="line-431"></span><span>    </span><span id="postSubreddit"><span class="annot"><span class="annottext">Post -&gt; Text
 </span><a href="Reddit.Types.html#postSubreddit"><span class="hs-identifier hs-var hs-var">postSubreddit</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/text-1.2.5.0/src"><span class="hs-identifier hs-type">Text</span></a></span><span class="hs-special">,</span><span>
-</span><span id="line-431"></span><span>    </span><span id="postSubredditId"><span class="annot"><span class="annottext">Post -&gt; ID Subreddit
+</span><span id="line-432"></span><span>    </span><span id="postSubredditId"><span class="annot"><span class="annottext">Post -&gt; ID Subreddit
 </span><a href="Reddit.Types.html#postSubredditId"><span class="hs-identifier hs-var hs-var">postSubredditId</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Reddit.Types.html#ID"><span class="hs-identifier hs-type">ID</span></a></span><span> </span><span class="annot"><a href="Reddit.Types.html#Subreddit"><span class="hs-identifier hs-type">Subreddit</span></a></span><span class="hs-special">,</span><span>
-</span><span id="line-432"></span><span>    </span><span id="postCreatedTime"><span class="annot"><span class="annottext">Post -&gt; UTCTime
+</span><span id="line-433"></span><span>    </span><span id="postCreatedTime"><span class="annot"><span class="annottext">Post -&gt; UTCTime
 </span><a href="Reddit.Types.html#postCreatedTime"><span class="hs-identifier hs-var hs-var">postCreatedTime</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/time-1.11.1.1/src"><span class="hs-identifier hs-type">UTCTime</span></a></span><span class="hs-special">,</span><span>
-</span><span id="line-433"></span><span>    </span><span id="postEditedTime"><span class="annot"><span class="annottext">Post -&gt; EditedUTCTime
+</span><span id="line-434"></span><span>    </span><span id="postEditedTime"><span class="annot"><span class="annottext">Post -&gt; EditedUTCTime
 </span><a href="Reddit.Types.html#postEditedTime"><span class="hs-identifier hs-var hs-var">postEditedTime</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Reddit.Types.html#EditedUTCTime"><span class="hs-identifier hs-type">EditedUTCTime</span></a></span><span>
-</span><span id="line-434"></span><span>  </span><span class="hs-special">}</span><span>
-</span><span id="line-435"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679099648"><span id="local-6989586621679099650"><span id="local-6989586621679099669"><span class="annot"><span class="annottext">Int -&gt; Post -&gt; ShowS
+</span><span id="line-435"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-436"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679099648"><span id="local-6989586621679099650"><span id="local-6989586621679099669"><span class="annot"><span class="annottext">Int -&gt; Post -&gt; ShowS
 [Post] -&gt; ShowS
 Post -&gt; String
 forall a.
@@ -1383,9 +1384,9 @@ $cshow :: Post -&gt; String
 showsPrec :: Int -&gt; Post -&gt; ShowS
 $cshowsPrec :: Int -&gt; Post -&gt; ShowS
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/base-4.16.4.0/src"><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></a></span></span></span></span><span class="hs-special">)</span><span>
-</span><span id="line-436"></span><span>
-</span><span id="line-437"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679099644"><span class="annot"><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/ghc-prim-0.8.0/src"><span class="hs-identifier hs-type">Eq</span></a></span><span> </span><span class="annot"><a href="Reddit.Types.html#Post"><span class="hs-identifier hs-type">Post</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
-</span><span id="line-438"></span><span>  </span><span id="local-6989586621679099642"><span class="annot"><span class="annottext">Post
+</span><span id="line-437"></span><span>
+</span><span id="line-438"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679099644"><span class="annot"><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/ghc-prim-0.8.0/src"><span class="hs-identifier hs-type">Eq</span></a></span><span> </span><span class="annot"><a href="Reddit.Types.html#Post"><span class="hs-identifier hs-type">Post</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-439"></span><span>  </span><span id="local-6989586621679099642"><span class="annot"><span class="annottext">Post
 </span><a href="#local-6989586621679099642"><span class="hs-identifier hs-var">p1</span></a></span></span><span> </span><span id="local-6989586621679099641"><span class="annot"><span class="annottext">== :: Post -&gt; Post -&gt; Bool
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/ghc-prim-0.8.0/src"><span class="hs-operator hs-var hs-var hs-var hs-var">==</span></a></span></span><span> </span><span id="local-6989586621679099640"><span class="annot"><span class="annottext">Post
 </span><a href="#local-6989586621679099640"><span class="hs-identifier hs-var">p2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Post -&gt; ID Post
@@ -1394,9 +1395,9 @@ $cshowsPrec :: Int -&gt; Post -&gt; ShowS
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/ghc-prim-0.8.0/src"><span class="hs-operator hs-var">==</span></a></span><span> </span><span class="annot"><span class="annottext">Post -&gt; ID Post
 </span><a href="Reddit.Types.html#postId"><span class="hs-identifier hs-var">postId</span></a></span><span> </span><span class="annot"><span class="annottext">Post
 </span><a href="#local-6989586621679099640"><span class="hs-identifier hs-var">p2</span></a></span><span>
-</span><span id="line-439"></span><span>
-</span><span id="line-440"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679099625"><span id="local-6989586621679099627"><span id="local-6989586621679099629"><span id="local-6989586621679099631"><span id="local-6989586621679099633"><span id="local-6989586621679099635"><span class="annot"><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/ghc-prim-0.8.0/src"><span class="hs-identifier hs-type">Ord</span></a></span><span> </span><span class="annot"><a href="Reddit.Types.html#Post"><span class="hs-identifier hs-type">Post</span></a></span></span></span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
-</span><span id="line-441"></span><span>  </span><span id="local-6989586621679099622"><span class="annot"><span class="annottext">compare :: Post -&gt; Post -&gt; Ordering
+</span><span id="line-440"></span><span>
+</span><span id="line-441"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679099625"><span id="local-6989586621679099627"><span id="local-6989586621679099629"><span id="local-6989586621679099631"><span id="local-6989586621679099633"><span id="local-6989586621679099635"><span class="annot"><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/ghc-prim-0.8.0/src"><span class="hs-identifier hs-type">Ord</span></a></span><span> </span><span class="annot"><a href="Reddit.Types.html#Post"><span class="hs-identifier hs-type">Post</span></a></span></span></span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-442"></span><span>  </span><span id="local-6989586621679099622"><span class="annot"><span class="annottext">compare :: Post -&gt; Post -&gt; Ordering
 </span><a href="#local-6989586621679099622"><span class="hs-identifier hs-var hs-var hs-var hs-var">compare</span></a></span></span><span> </span><span id="local-6989586621679099621"><span class="annot"><span class="annottext">Post
 </span><a href="#local-6989586621679099621"><span class="hs-identifier hs-var">p1</span></a></span></span><span> </span><span id="local-6989586621679099620"><span class="annot"><span class="annottext">Post
 </span><a href="#local-6989586621679099620"><span class="hs-identifier hs-var">p2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Ordering
@@ -1405,27 +1406,27 @@ $cshowsPrec :: Int -&gt; Post -&gt; ShowS
 </span><a href="#local-6989586621679099621"><span class="hs-identifier hs-var">p1</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Post -&gt; ID Post
 </span><a href="Reddit.Types.html#postId"><span class="hs-identifier hs-var">postId</span></a></span><span> </span><span class="annot"><span class="annottext">Post
 </span><a href="#local-6989586621679099620"><span class="hs-identifier hs-var">p2</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-442"></span><span>
-</span><span id="line-443"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679099617"><span class="annot"><span class="hs-identifier hs-type">FromJSON</span></span><span> </span><span class="annot"><a href="Reddit.Types.html#Post"><span class="hs-identifier hs-type">Post</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
-</span><span id="line-444"></span><span>  </span><span id="local-6989586621679099567"><span class="annot"><span class="annottext">parseJSON :: Value -&gt; Parser Post
+</span><span id="line-443"></span><span>
+</span><span id="line-444"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679099617"><span class="annot"><span class="hs-identifier hs-type">FromJSON</span></span><span> </span><span class="annot"><a href="Reddit.Types.html#Post"><span class="hs-identifier hs-type">Post</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-445"></span><span>  </span><span id="local-6989586621679099567"><span class="annot"><span class="annottext">parseJSON :: Value -&gt; Parser Post
 </span><a href="#local-6989586621679099567"><span class="hs-identifier hs-var hs-var hs-var hs-var">parseJSON</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. String -&gt; (Object -&gt; Parser a) -&gt; Value -&gt; Parser a
 </span><span class="hs-identifier hs-var">withObject</span></span><span> </span><span class="annot"><span class="annottext">String
 </span><span class="hs-string">&quot;Post&quot;</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/base-4.16.4.0/src"><span class="hs-operator hs-var">$</span></a></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679099566"><span class="annot"><span class="annottext">Object
 </span><a href="#local-6989586621679099566"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-445"></span><span>    </span><span id="local-6989586621679099565"><span class="annot"><span class="annottext">Object
+</span><span id="line-446"></span><span>    </span><span id="local-6989586621679099565"><span class="annot"><span class="annottext">Object
 </span><a href="#local-6989586621679099565"><span class="hs-identifier hs-var">v</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Object
 </span><a href="#local-6989586621679099566"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. FromJSON a =&gt; Object -&gt; Key -&gt; Parser a
 </span><span class="hs-operator hs-var">.:</span></span><span> </span><span class="annot"><span class="annottext">Key
 </span><span class="hs-string">&quot;data&quot;</span></span><span>
-</span><span id="line-446"></span><span>    </span><span id="local-6989586621679099564"><span class="annot"><span class="annottext">ID Post
+</span><span id="line-447"></span><span>    </span><span id="local-6989586621679099564"><span class="annot"><span class="annottext">ID Post
 </span><a href="#local-6989586621679099564"><span class="hs-identifier hs-var">postId</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Text -&gt; ID Post
 </span><a href="Reddit.Types.html#PostID"><span class="hs-identifier hs-var">PostID</span></a></span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/base-4.16.4.0/src"><span class="hs-operator hs-var">&lt;$&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">Object
 </span><a href="#local-6989586621679099565"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. FromJSON a =&gt; Object -&gt; Key -&gt; Parser a
 </span><span class="hs-operator hs-var">.:</span></span><span> </span><span class="annot"><span class="annottext">Key
 </span><span class="hs-string">&quot;id&quot;</span></span><span>
-</span><span id="line-447"></span><span>    </span><span id="local-6989586621679099563"><span class="annot"><span class="annottext">Text
+</span><span id="line-448"></span><span>    </span><span id="local-6989586621679099563"><span class="annot"><span class="annottext">Text
 </span><a href="#local-6989586621679099563"><span class="hs-identifier hs-var">postUrl</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Text
 </span><a href="Reddit.Types.html#redditURL"><span class="hs-identifier hs-var">redditURL</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Semigroup a =&gt; a -&gt; a -&gt; a
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/base-4.16.4.0/src"><span class="hs-operator hs-var">&lt;&gt;</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
@@ -1433,66 +1434,66 @@ $cshowsPrec :: Int -&gt; Post -&gt; ShowS
 </span><a href="#local-6989586621679099565"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. FromJSON a =&gt; Object -&gt; Key -&gt; Parser a
 </span><span class="hs-operator hs-var">.:</span></span><span> </span><span class="annot"><span class="annottext">Key
 </span><span class="hs-string">&quot;permalink&quot;</span></span><span>
-</span><span id="line-448"></span><span>    </span><span id="local-6989586621679099562"><span class="annot"><span class="annottext">Int
+</span><span id="line-449"></span><span>    </span><span id="local-6989586621679099562"><span class="annot"><span class="annottext">Int
 </span><a href="#local-6989586621679099562"><span class="hs-identifier hs-var">postScore</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Object
 </span><a href="#local-6989586621679099565"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. FromJSON a =&gt; Object -&gt; Key -&gt; Parser a
 </span><span class="hs-operator hs-var">.:</span></span><span> </span><span class="annot"><span class="annottext">Key
 </span><span class="hs-string">&quot;score&quot;</span></span><span>
-</span><span id="line-449"></span><span>    </span><span id="local-6989586621679099561"><span class="annot"><span class="annottext">Text
+</span><span id="line-450"></span><span>    </span><span id="local-6989586621679099561"><span class="annot"><span class="annottext">Text
 </span><a href="#local-6989586621679099561"><span class="hs-identifier hs-var">postAuthor</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Object
 </span><a href="#local-6989586621679099565"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. FromJSON a =&gt; Object -&gt; Key -&gt; Parser a
 </span><span class="hs-operator hs-var">.:</span></span><span> </span><span class="annot"><span class="annottext">Key
 </span><span class="hs-string">&quot;author&quot;</span></span><span>
-</span><span id="line-450"></span><span>    </span><span id="local-6989586621679099560"><span class="annot"><span class="annottext">Maybe (ID Account)
+</span><span id="line-451"></span><span>    </span><span id="local-6989586621679099560"><span class="annot"><span class="annottext">Maybe (ID Account)
 </span><a href="#local-6989586621679099560"><span class="hs-identifier hs-var">postAuthorId</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Object
 </span><a href="#local-6989586621679099565"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. FromJSON a =&gt; Object -&gt; Key -&gt; Parser (Maybe a)
 </span><span class="hs-operator hs-var">.:?</span></span><span> </span><span class="annot"><span class="annottext">Key
 </span><span class="hs-string">&quot;author_fullname&quot;</span></span><span>
-</span><span id="line-451"></span><span>    </span><span id="local-6989586621679099559"><span class="annot"><span class="annottext">Text
+</span><span id="line-452"></span><span>    </span><span id="local-6989586621679099559"><span class="annot"><span class="annottext">Text
 </span><a href="#local-6989586621679099559"><span class="hs-identifier hs-var">postTitle</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Object
 </span><a href="#local-6989586621679099565"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. FromJSON a =&gt; Object -&gt; Key -&gt; Parser a
 </span><span class="hs-operator hs-var">.:</span></span><span> </span><span class="annot"><span class="annottext">Key
 </span><span class="hs-string">&quot;title&quot;</span></span><span>
-</span><span id="line-452"></span><span>    </span><span id="local-6989586621679099558"><span class="annot"><span class="annottext">Text
+</span><span id="line-453"></span><span>    </span><span id="local-6989586621679099558"><span class="annot"><span class="annottext">Text
 </span><a href="#local-6989586621679099558"><span class="hs-identifier hs-var">postBody</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Object
 </span><a href="#local-6989586621679099565"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. FromJSON a =&gt; Object -&gt; Key -&gt; Parser a
 </span><span class="hs-operator hs-var">.:</span></span><span> </span><span class="annot"><span class="annottext">Key
 </span><span class="hs-string">&quot;selftext&quot;</span></span><span>
-</span><span id="line-453"></span><span>    </span><span id="local-6989586621679099557"><span class="annot"><span class="annottext">Text
+</span><span id="line-454"></span><span>    </span><span id="local-6989586621679099557"><span class="annot"><span class="annottext">Text
 </span><a href="#local-6989586621679099557"><span class="hs-identifier hs-var">postContentUrl</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Object
 </span><a href="#local-6989586621679099565"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. FromJSON a =&gt; Object -&gt; Key -&gt; Parser a
 </span><span class="hs-operator hs-var">.:</span></span><span> </span><span class="annot"><span class="annottext">Key
 </span><span class="hs-string">&quot;url&quot;</span></span><span>
-</span><span id="line-454"></span><span>    </span><span id="local-6989586621679099556"><span class="annot"><span class="annottext">Maybe Text
+</span><span id="line-455"></span><span>    </span><span id="local-6989586621679099556"><span class="annot"><span class="annottext">Maybe Text
 </span><a href="#local-6989586621679099556"><span class="hs-identifier hs-var">postFlairText</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Object
 </span><a href="#local-6989586621679099565"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. FromJSON a =&gt; Object -&gt; Key -&gt; Parser a
 </span><span class="hs-operator hs-var">.:</span></span><span> </span><span class="annot"><span class="annottext">Key
 </span><span class="hs-string">&quot;link_flair_text&quot;</span></span><span>
-</span><span id="line-455"></span><span>    </span><span id="local-6989586621679099555"><span class="annot"><span class="annottext">Text
+</span><span id="line-456"></span><span>    </span><span id="local-6989586621679099555"><span class="annot"><span class="annottext">Text
 </span><a href="#local-6989586621679099555"><span class="hs-identifier hs-var">postSubreddit</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Object
 </span><a href="#local-6989586621679099565"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. FromJSON a =&gt; Object -&gt; Key -&gt; Parser a
 </span><span class="hs-operator hs-var">.:</span></span><span> </span><span class="annot"><span class="annottext">Key
 </span><span class="hs-string">&quot;subreddit&quot;</span></span><span>
-</span><span id="line-456"></span><span>    </span><span id="local-6989586621679099554"><span class="annot"><span class="annottext">ID Subreddit
+</span><span id="line-457"></span><span>    </span><span id="local-6989586621679099554"><span class="annot"><span class="annottext">ID Subreddit
 </span><a href="#local-6989586621679099554"><span class="hs-identifier hs-var">postSubredditId</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Object
 </span><a href="#local-6989586621679099565"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. FromJSON a =&gt; Object -&gt; Key -&gt; Parser a
 </span><span class="hs-operator hs-var">.:</span></span><span> </span><span class="annot"><span class="annottext">Key
 </span><span class="hs-string">&quot;subreddit_id&quot;</span></span><span>
-</span><span id="line-457"></span><span>    </span><span id="local-6989586621679099553"><span class="annot"><span class="annottext">UTCTime
+</span><span id="line-458"></span><span>    </span><span id="local-6989586621679099553"><span class="annot"><span class="annottext">UTCTime
 </span><a href="#local-6989586621679099553"><span class="hs-identifier hs-var">postCreatedTime</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">POSIXTime -&gt; UTCTime
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/time-1.11.1.1/src"><span class="hs-identifier hs-var">posixSecondsToUTCTime</span></a></span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/base-4.16.4.0/src"><span class="hs-operator hs-var">&lt;$&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">Object
 </span><a href="#local-6989586621679099565"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. FromJSON a =&gt; Object -&gt; Key -&gt; Parser a
 </span><span class="hs-operator hs-var">.:</span></span><span> </span><span class="annot"><span class="annottext">Key
 </span><span class="hs-string">&quot;created_utc&quot;</span></span><span>
-</span><span id="line-458"></span><span>    </span><span id="local-6989586621679099552"><span class="annot"><span class="annottext">EditedUTCTime
+</span><span id="line-459"></span><span>    </span><span id="local-6989586621679099552"><span class="annot"><span class="annottext">EditedUTCTime
 </span><a href="#local-6989586621679099552"><span class="hs-identifier hs-var">postEditedTime</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Value -&gt; EditedUTCTime
 </span><a href="Reddit.Types.html#convertEditedTime"><span class="hs-identifier hs-var">convertEditedTime</span></a></span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/base-4.16.4.0/src"><span class="hs-operator hs-var">&lt;$&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">Object
 </span><a href="#local-6989586621679099565"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. FromJSON a =&gt; Object -&gt; Key -&gt; Parser a
 </span><span class="hs-operator hs-var">.:</span></span><span> </span><span class="annot"><span class="annottext">Key
 </span><span class="hs-string">&quot;edited&quot;</span></span><span>
-</span><span id="line-459"></span><span>    </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span id="line-460"></span><span>    </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/base-4.16.4.0/src"><span class="hs-identifier hs-var">pure</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/base-4.16.4.0/src"><span class="hs-operator hs-var">$</span></a></span><span> </span><span class="annot"><a href="Reddit.Types.html#Post"><span class="hs-identifier hs-type">Post</span></a></span><span> </span><span class="hs-special">{</span><span class="annot"><span class="annottext">Int
 Maybe Text
@@ -1529,29 +1530,30 @@ postScore :: Int
 postUrl :: Text
 postId :: ID Post
 </span><a href="#local-6989586621679099552"><span class="hs-glyph hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">..</span></a></span><span class="hs-special">}</span><span>
-</span><span id="line-460"></span><span>
-</span><span id="line-461"></span><span class="hs-comment">-- Subreddit</span><span>
-</span><span id="line-462"></span><span>
-</span><span id="line-463"></span><span class="hs-keyword">data</span><span> </span><span id="Subreddit"><span class="annot"><a href="Reddit.Types.html#Subreddit"><span class="hs-identifier hs-var">Subreddit</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Subreddit"><span class="annot"><a href="Reddit.Types.html#Subreddit"><span class="hs-identifier hs-var">Subreddit</span></a></span></span><span>
-</span><span id="line-464"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="subredditId"><span class="annot"><span class="annottext">Subreddit -&gt; ID Subreddit
+</span><span id="line-461"></span><span>
+</span><span id="line-462"></span><span class="hs-comment">-- Subreddit</span><span>
+</span><span id="line-463"></span><span>
+</span><span id="line-464"></span><span class="hs-comment">-- | A subreddit.</span><span>
+</span><span id="line-465"></span><span class="hs-keyword">data</span><span> </span><span id="Subreddit"><span class="annot"><a href="Reddit.Types.html#Subreddit"><span class="hs-identifier hs-var">Subreddit</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Subreddit"><span class="annot"><a href="Reddit.Types.html#Subreddit"><span class="hs-identifier hs-var">Subreddit</span></a></span></span><span>
+</span><span id="line-466"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="subredditId"><span class="annot"><span class="annottext">Subreddit -&gt; ID Subreddit
 </span><a href="Reddit.Types.html#subredditId"><span class="hs-identifier hs-var hs-var">subredditId</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Reddit.Types.html#ID"><span class="hs-identifier hs-type">ID</span></a></span><span> </span><span class="annot"><a href="Reddit.Types.html#Subreddit"><span class="hs-identifier hs-type">Subreddit</span></a></span><span class="hs-special">,</span><span>
-</span><span id="line-465"></span><span>    </span><span class="hs-comment">-- | Subreddit name (without the @\/r\/@).</span><span>
-</span><span id="line-466"></span><span>    </span><span id="subredditName"><span class="annot"><span class="annottext">Subreddit -&gt; Text
+</span><span id="line-467"></span><span>    </span><span class="hs-comment">-- | Subreddit name (without the @\/r\/@).</span><span>
+</span><span id="line-468"></span><span>    </span><span id="subredditName"><span class="annot"><span class="annottext">Subreddit -&gt; Text
 </span><a href="Reddit.Types.html#subredditName"><span class="hs-identifier hs-var hs-var">subredditName</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/text-1.2.5.0/src"><span class="hs-identifier hs-type">Text</span></a></span><span class="hs-special">,</span><span>
-</span><span id="line-467"></span><span>    </span><span class="hs-comment">-- | Human name (the string that appears at the top of the sub).</span><span>
-</span><span id="line-468"></span><span>    </span><span id="subredditTitle"><span class="annot"><span class="annottext">Subreddit -&gt; Text
+</span><span id="line-469"></span><span>    </span><span class="hs-comment">-- | Human name (the string that appears at the top of the sub).</span><span>
+</span><span id="line-470"></span><span>    </span><span id="subredditTitle"><span class="annot"><span class="annottext">Subreddit -&gt; Text
 </span><a href="Reddit.Types.html#subredditTitle"><span class="hs-identifier hs-var hs-var">subredditTitle</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/text-1.2.5.0/src"><span class="hs-identifier hs-type">Text</span></a></span><span class="hs-special">,</span><span>
-</span><span id="line-469"></span><span>    </span><span class="hs-comment">-- | Sidebar text.</span><span>
-</span><span id="line-470"></span><span>    </span><span id="subredditDescription"><span class="annot"><span class="annottext">Subreddit -&gt; Text
+</span><span id="line-471"></span><span>    </span><span class="hs-comment">-- | Sidebar text.</span><span>
+</span><span id="line-472"></span><span>    </span><span id="subredditDescription"><span class="annot"><span class="annottext">Subreddit -&gt; Text
 </span><a href="Reddit.Types.html#subredditDescription"><span class="hs-identifier hs-var hs-var">subredditDescription</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/text-1.2.5.0/src"><span class="hs-identifier hs-type">Text</span></a></span><span class="hs-special">,</span><span>
-</span><span id="line-471"></span><span>    </span><span class="hs-comment">-- | Number of subscribers.</span><span>
-</span><span id="line-472"></span><span>    </span><span id="subredditSubscribers"><span class="annot"><span class="annottext">Subreddit -&gt; Int
+</span><span id="line-473"></span><span>    </span><span class="hs-comment">-- | Number of subscribers.</span><span>
+</span><span id="line-474"></span><span>    </span><span id="subredditSubscribers"><span class="annot"><span class="annottext">Subreddit -&gt; Int
 </span><a href="Reddit.Types.html#subredditSubscribers"><span class="hs-identifier hs-var hs-var">subredditSubscribers</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/ghc-prim-0.8.0/src"><span class="hs-identifier hs-type">Int</span></a></span><span class="hs-special">,</span><span>
-</span><span id="line-473"></span><span>    </span><span class="hs-comment">-- | Created time.</span><span>
-</span><span id="line-474"></span><span>    </span><span id="subredditCreated"><span class="annot"><span class="annottext">Subreddit -&gt; UTCTime
+</span><span id="line-475"></span><span>    </span><span class="hs-comment">-- | Created time.</span><span>
+</span><span id="line-476"></span><span>    </span><span id="subredditCreated"><span class="annot"><span class="annottext">Subreddit -&gt; UTCTime
 </span><a href="Reddit.Types.html#subredditCreated"><span class="hs-identifier hs-var hs-var">subredditCreated</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/time-1.11.1.1/src"><span class="hs-identifier hs-type">UTCTime</span></a></span><span>
-</span><span id="line-475"></span><span>  </span><span class="hs-special">}</span><span>
-</span><span id="line-476"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679099535"><span id="local-6989586621679099544"><span class="annot"><span class="annottext">Subreddit -&gt; Subreddit -&gt; Bool
+</span><span id="line-477"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-478"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679099535"><span id="local-6989586621679099544"><span class="annot"><span class="annottext">Subreddit -&gt; Subreddit -&gt; Bool
 forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
 /= :: Subreddit -&gt; Subreddit -&gt; Bool
 $c/= :: Subreddit -&gt; Subreddit -&gt; Bool
@@ -1597,54 +1599,54 @@ $cshow :: Subreddit -&gt; String
 showsPrec :: Int -&gt; Subreddit -&gt; ShowS
 $cshowsPrec :: Int -&gt; Subreddit -&gt; ShowS
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/base-4.16.4.0/src"><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></a></span></span></span></span><span class="hs-special">)</span><span>
-</span><span id="line-477"></span><span>
-</span><span id="line-478"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679099485"><span class="annot"><span class="hs-identifier hs-type">FromJSON</span></span><span> </span><span class="annot"><a href="Reddit.Types.html#Subreddit"><span class="hs-identifier hs-type">Subreddit</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
-</span><span id="line-479"></span><span>  </span><span id="local-6989586621679099459"><span class="annot"><span class="annottext">parseJSON :: Value -&gt; Parser Subreddit
+</span><span id="line-479"></span><span>
+</span><span id="line-480"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679099485"><span class="annot"><span class="hs-identifier hs-type">FromJSON</span></span><span> </span><span class="annot"><a href="Reddit.Types.html#Subreddit"><span class="hs-identifier hs-type">Subreddit</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-481"></span><span>  </span><span id="local-6989586621679099459"><span class="annot"><span class="annottext">parseJSON :: Value -&gt; Parser Subreddit
 </span><a href="#local-6989586621679099459"><span class="hs-identifier hs-var hs-var hs-var hs-var">parseJSON</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. String -&gt; (Object -&gt; Parser a) -&gt; Value -&gt; Parser a
 </span><span class="hs-identifier hs-var">withObject</span></span><span> </span><span class="annot"><span class="annottext">String
 </span><span class="hs-string">&quot;Subreddit&quot;</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/base-4.16.4.0/src"><span class="hs-operator hs-var">$</span></a></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679099458"><span class="annot"><span class="annottext">Object
 </span><a href="#local-6989586621679099458"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-480"></span><span>    </span><span id="local-6989586621679099457"><span class="annot"><span class="annottext">Object
+</span><span id="line-482"></span><span>    </span><span id="local-6989586621679099457"><span class="annot"><span class="annottext">Object
 </span><a href="#local-6989586621679099457"><span class="hs-identifier hs-var">v</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Object
 </span><a href="#local-6989586621679099458"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. FromJSON a =&gt; Object -&gt; Key -&gt; Parser a
 </span><span class="hs-operator hs-var">.:</span></span><span> </span><span class="annot"><span class="annottext">Key
 </span><span class="hs-string">&quot;data&quot;</span></span><span>
-</span><span id="line-481"></span><span>    </span><span id="local-6989586621679099456"><span class="annot"><span class="annottext">ID Subreddit
+</span><span id="line-483"></span><span>    </span><span id="local-6989586621679099456"><span class="annot"><span class="annottext">ID Subreddit
 </span><a href="#local-6989586621679099456"><span class="hs-identifier hs-var">subredditId</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Text -&gt; ID Subreddit
 </span><a href="Reddit.Types.html#SubredditID"><span class="hs-identifier hs-var">SubredditID</span></a></span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/base-4.16.4.0/src"><span class="hs-operator hs-var">&lt;$&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">Object
 </span><a href="#local-6989586621679099457"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. FromJSON a =&gt; Object -&gt; Key -&gt; Parser a
 </span><span class="hs-operator hs-var">.:</span></span><span> </span><span class="annot"><span class="annottext">Key
 </span><span class="hs-string">&quot;id&quot;</span></span><span>
-</span><span id="line-482"></span><span>    </span><span id="local-6989586621679099455"><span class="annot"><span class="annottext">Text
+</span><span id="line-484"></span><span>    </span><span id="local-6989586621679099455"><span class="annot"><span class="annottext">Text
 </span><a href="#local-6989586621679099455"><span class="hs-identifier hs-var">subredditName</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Object
 </span><a href="#local-6989586621679099457"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. FromJSON a =&gt; Object -&gt; Key -&gt; Parser a
 </span><span class="hs-operator hs-var">.:</span></span><span> </span><span class="annot"><span class="annottext">Key
 </span><span class="hs-string">&quot;display_name&quot;</span></span><span>
-</span><span id="line-483"></span><span>    </span><span id="local-6989586621679099454"><span class="annot"><span class="annottext">Text
+</span><span id="line-485"></span><span>    </span><span id="local-6989586621679099454"><span class="annot"><span class="annottext">Text
 </span><a href="#local-6989586621679099454"><span class="hs-identifier hs-var">subredditDescription</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Object
 </span><a href="#local-6989586621679099457"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. FromJSON a =&gt; Object -&gt; Key -&gt; Parser a
 </span><span class="hs-operator hs-var">.:</span></span><span> </span><span class="annot"><span class="annottext">Key
 </span><span class="hs-string">&quot;public_description&quot;</span></span><span>
-</span><span id="line-484"></span><span>    </span><span id="local-6989586621679099453"><span class="annot"><span class="annottext">Text
+</span><span id="line-486"></span><span>    </span><span id="local-6989586621679099453"><span class="annot"><span class="annottext">Text
 </span><a href="#local-6989586621679099453"><span class="hs-identifier hs-var">subredditTitle</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Object
 </span><a href="#local-6989586621679099457"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. FromJSON a =&gt; Object -&gt; Key -&gt; Parser a
 </span><span class="hs-operator hs-var">.:</span></span><span> </span><span class="annot"><span class="annottext">Key
 </span><span class="hs-string">&quot;title&quot;</span></span><span>
-</span><span id="line-485"></span><span>    </span><span id="local-6989586621679099452"><span class="annot"><span class="annottext">Int
+</span><span id="line-487"></span><span>    </span><span id="local-6989586621679099452"><span class="annot"><span class="annottext">Int
 </span><a href="#local-6989586621679099452"><span class="hs-identifier hs-var">subredditSubscribers</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Object
 </span><a href="#local-6989586621679099457"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. FromJSON a =&gt; Object -&gt; Key -&gt; Parser a
 </span><span class="hs-operator hs-var">.:</span></span><span> </span><span class="annot"><span class="annottext">Key
 </span><span class="hs-string">&quot;subscribers&quot;</span></span><span>
-</span><span id="line-486"></span><span>    </span><span id="local-6989586621679099451"><span class="annot"><span class="annottext">UTCTime
+</span><span id="line-488"></span><span>    </span><span id="local-6989586621679099451"><span class="annot"><span class="annottext">UTCTime
 </span><a href="#local-6989586621679099451"><span class="hs-identifier hs-var">subredditCreated</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">POSIXTime -&gt; UTCTime
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/time-1.11.1.1/src"><span class="hs-identifier hs-var">posixSecondsToUTCTime</span></a></span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/base-4.16.4.0/src"><span class="hs-operator hs-var">&lt;$&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">Object
 </span><a href="#local-6989586621679099457"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. FromJSON a =&gt; Object -&gt; Key -&gt; Parser a
 </span><span class="hs-operator hs-var">.:</span></span><span> </span><span class="annot"><span class="annottext">Key
 </span><span class="hs-string">&quot;created&quot;</span></span><span>
-</span><span id="line-487"></span><span>    </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span id="line-489"></span><span>    </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/base-4.16.4.0/src"><span class="hs-identifier hs-var">pure</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/base-4.16.4.0/src"><span class="hs-operator hs-var">$</span></a></span><span> </span><span class="annot"><a href="Reddit.Types.html#Subreddit"><span class="hs-identifier hs-type">Subreddit</span></a></span><span> </span><span class="hs-special">{</span><span class="annot"><span class="annottext">Int
 Text
@@ -1663,13 +1665,14 @@ subredditTitle :: Text
 subredditName :: Text
 subredditId :: ID Subreddit
 </span><a href="#local-6989586621679099451"><span class="hs-glyph hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">..</span></a></span><span class="hs-special">}</span><span>
-</span><span id="line-488"></span><span>
-</span><span id="line-489"></span><span class="hs-comment">-- Award</span><span>
 </span><span id="line-490"></span><span>
-</span><span id="line-491"></span><span class="hs-keyword">data</span><span> </span><span id="Award"><span class="annot"><a href="Reddit.Types.html#Award"><span class="hs-identifier hs-var">Award</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Award"><span class="annot"><a href="Reddit.Types.html#Award"><span class="hs-identifier hs-var">Award</span></a></span></span><span>
-</span><span id="line-492"></span><span>  </span><span class="hs-special">{</span><span id="awardId"><span class="annot"><span class="annottext">Award -&gt; ID Award
+</span><span id="line-491"></span><span class="hs-comment">-- Award</span><span>
+</span><span id="line-492"></span><span>
+</span><span id="line-493"></span><span class="hs-comment">-- | A Reddit award. Not implemented yet.</span><span>
+</span><span id="line-494"></span><span class="hs-keyword">data</span><span> </span><span id="Award"><span class="annot"><a href="Reddit.Types.html#Award"><span class="hs-identifier hs-var">Award</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Award"><span class="annot"><a href="Reddit.Types.html#Award"><span class="hs-identifier hs-var">Award</span></a></span></span><span>
+</span><span id="line-495"></span><span>  </span><span class="hs-special">{</span><span id="awardId"><span class="annot"><span class="annottext">Award -&gt; ID Award
 </span><a href="Reddit.Types.html#awardId"><span class="hs-identifier hs-var hs-var">awardId</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Reddit.Types.html#ID"><span class="hs-identifier hs-type">ID</span></a></span><span> </span><span class="annot"><a href="Reddit.Types.html#Award"><span class="hs-identifier hs-type">Award</span></a></span><span class="hs-special">}</span><span>
-</span><span id="line-493"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679099444"><span id="local-6989586621679099448"><span class="annot"><span class="annottext">Award -&gt; Award -&gt; Bool
+</span><span id="line-496"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679099444"><span id="local-6989586621679099448"><span class="annot"><span class="annottext">Award -&gt; Award -&gt; Bool
 forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
 /= :: Award -&gt; Award -&gt; Bool
 $c/= :: Award -&gt; Award -&gt; Bool
@@ -1715,11 +1718,14 @@ $cshow :: Award -&gt; String
 showsPrec :: Int -&gt; Award -&gt; ShowS
 $cshowsPrec :: Int -&gt; Award -&gt; ShowS
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/base-4.16.4.0/src"><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></a></span></span></span></span><span class="hs-special">)</span><span>
-</span><span id="line-494"></span><span>
-</span><span id="line-495"></span><span class="hs-keyword">data</span><span> </span><span id="Message"><span class="annot"><a href="Reddit.Types.html#Message"><span class="hs-identifier hs-var">Message</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Message"><span class="annot"><a href="Reddit.Types.html#Message"><span class="hs-identifier hs-var">Message</span></a></span></span><span>
-</span><span id="line-496"></span><span>  </span><span class="hs-special">{</span><span id="messageId"><span class="annot"><span class="annottext">Message -&gt; ID Message
+</span><span id="line-497"></span><span>
+</span><span id="line-498"></span><span class="hs-comment">-- Message</span><span>
+</span><span id="line-499"></span><span>
+</span><span id="line-500"></span><span class="hs-comment">-- | A Reddit message (these refer to direct messages, not chat). Not implemented yet.</span><span>
+</span><span id="line-501"></span><span class="hs-keyword">data</span><span> </span><span id="Message"><span class="annot"><a href="Reddit.Types.html#Message"><span class="hs-identifier hs-var">Message</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Message"><span class="annot"><a href="Reddit.Types.html#Message"><span class="hs-identifier hs-var">Message</span></a></span></span><span>
+</span><span id="line-502"></span><span>  </span><span class="hs-special">{</span><span id="messageId"><span class="annot"><span class="annottext">Message -&gt; ID Message
 </span><a href="Reddit.Types.html#messageId"><span class="hs-identifier hs-var hs-var">messageId</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Reddit.Types.html#ID"><span class="hs-identifier hs-type">ID</span></a></span><span> </span><span class="annot"><a href="Reddit.Types.html#Message"><span class="hs-identifier hs-type">Message</span></a></span><span class="hs-special">}</span><span>
-</span><span id="line-497"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679099405"><span id="local-6989586621679099409"><span class="annot"><span class="annottext">Message -&gt; Message -&gt; Bool
+</span><span id="line-503"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679099405"><span id="local-6989586621679099409"><span class="annot"><span class="annottext">Message -&gt; Message -&gt; Bool
 forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
 /= :: Message -&gt; Message -&gt; Bool
 $c/= :: Message -&gt; Message -&gt; Bool
@@ -1765,4 +1771,4 @@ $cshow :: Message -&gt; String
 showsPrec :: Int -&gt; Message -&gt; ShowS
 $cshowsPrec :: Int -&gt; Message -&gt; ShowS
 </span><a href="../file:///usr/local/.ghcup/ghc/9.2.8/share/doc/ghc-9.2.8/html/libraries/base-4.16.4.0/src"><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></a></span></span></span></span><span class="hs-special">)</span><span>
-</span><span id="line-498"></span></pre></body></html>
+</span><span id="line-504"></span></pre></body></html>
