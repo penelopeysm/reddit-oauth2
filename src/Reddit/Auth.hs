@@ -314,11 +314,20 @@ data AuthUrlParams = AuthUrlParams
     authUrlScopes :: S.Set Scope
   }
 
--- | Construct the Reddit authorisation URL that you should send your users to.
-mkRedditAuthURL :: AuthUrlParams -> Text
-mkRedditAuthURL params =
+-- | Construct the Reddit authorisation URL that you should send your users to
+-- for the 'code grant' flow.
+mkRedditAuthURL ::
+  AuthUrlParams ->
+  -- | Whether to use the mobile version of the authorisation page
+  Bool ->
+  -- | The authorisation URL
+  Text
+mkRedditAuthURL params mobile =
   let (maybeUri :: Maybe URI.URI) = do
-        baseUri <- URI.mkURI "https://www.reddit.com/api/v1/authorize"
+        baseUri <-
+          if mobile
+            then URI.mkURI "https://www.reddit.com/api/v1/authorize.compact"
+            else URI.mkURI "https://www.reddit.com/api/v1/authorize"
         clientIDKey <- URI.mkQueryKey "client_id"
         clientIDVal <- URI.mkQueryValue (authUrlClientID params)
         typeKey <- URI.mkQueryKey "response_type"
