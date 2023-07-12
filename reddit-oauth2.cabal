@@ -59,7 +59,7 @@ executable reddit-oauth2
       OverloadedStrings
 
     build-depends:
-        base ^>=4.16.4.0 || ^>=4.17.0.0,
+        base ^>=4.16.4.0 || ^>=4.17.0.0 || ^>=4.18.0.0,
         reddit-oauth2,
         bytestring,
         text,
