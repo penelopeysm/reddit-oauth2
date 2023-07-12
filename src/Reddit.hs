@@ -114,7 +114,7 @@ where
 
 import Control.Concurrent (threadDelay)
 import Control.Exception (Exception (..), finally, throwIO)
-import Control.Monad (foldM)
+import Control.Monad (foldM, void, when)
 import Control.Monad.Reader
 import Data.Aeson
 import Data.Aeson.Types (Value (..), parse)
