@@ -394,12 +394,12 @@ data AuthUrlParams = AuthUrlParams
 -- | Construct the Reddit authorisation URL that you should send your users to
 -- for the 'code grant' flow.
 mkRedditAuthURL ::
-  AuthUrlParams ->
-  -- | Whether to use the mobile version of the authorisation page
   Bool ->
+  -- | Whether to use the mobile version of the authorisation page
+  AuthUrlParams ->
   -- | The authorisation URL
   Text
-mkRedditAuthURL params mobile =
+mkRedditAuthURL mobile params =
   let (maybeUri :: Maybe URI.URI) = do
         baseUri <-
           if mobile
