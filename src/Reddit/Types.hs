@@ -416,6 +416,10 @@ data Post = Post
     -- | Permalink.
     postUrl :: Text,
     postScore :: Int,
+    -- | Number of upvotes. Note that this is fuzzed by Reddit.
+    postUpvotes :: Int,
+    -- | Upvote to downvote ratio. Note that this is fuzzed by Reddit.
+    postUpvoteRatio :: Double,
     -- | Username of the author (without the @\/u\/@).
     postAuthor :: Text,
     -- | Can be @Nothing@ if the account was deleted.
@@ -423,6 +427,8 @@ data Post = Post
     postTitle :: Text,
     -- | Empty string if not a text post.
     postBody :: Text,
+    -- | HTML version of post body. Empty string if not a text post.
+    postBodyHtml :: Text,
     -- | For a link post, this is the link. For a text post, this is the same as @url@.
     postContentUrl :: Text,
     -- | None if not flaired.
@@ -431,7 +437,13 @@ data Post = Post
     postSubreddit :: Text,
     postSubredditId :: ID Subreddit,
     postCreatedTime :: UTCTime,
-    postEditedTime :: EditedUTCTime
+    postEditedTime :: EditedUTCTime,
+    -- | Whether the logged in user saved the post.
+    postSaved :: Bool,
+    -- | Whether the logged in user hid the post.
+    postHidden :: Bool,
+    postLocked :: Bool,
+    postStickied :: Bool
   }
   deriving (Show)
 
@@ -447,16 +459,23 @@ instance FromJSON Post where
     postId <- PostID <$> v .: "id"
     postUrl <- (redditURL <>) <$> v .: "permalink"
     postScore <- v .: "score"
+    postUpvotes <- v .: "ups"
+    postUpvoteRatio <- v .: "upvote_ratio"
     postAuthor <- v .: "author"
     postAuthorId <- v .:? "author_fullname"
     postTitle <- v .: "title"
     postBody <- v .: "selftext"
+    postBodyHtml <- v .: "selftext_html"
     postContentUrl <- v .: "url"
     postFlairText <- v .: "link_flair_text"
     postSubreddit <- v .: "subreddit"
     postSubredditId <- v .: "subreddit_id"
     postCreatedTime <- posixSecondsToUTCTime <$> v .: "created_utc"
     postEditedTime <- convertEditedTime <$> v .: "edited"
+    postSaved <- v .: "saved"
+    postHidden <- v .: "hidden"
+    postLocked <- v .: "locked"
+    postStickied <- v .: "stickied"
     pure $ Post {..}
 
 -- Subreddit

@@ -42,5 +42,5 @@ main = do
   hSetBuffering stdout NoBuffering
 
   runRedditT' env $ do
-    me <- myAccount
-    liftIO $ print me
+    post <- getPost (PostID "143cum5")
+    liftIO $ print post
