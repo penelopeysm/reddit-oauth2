@@ -236,7 +236,7 @@ instance Ord Comment where
 
 instance FromJSON Comment where
   parseJSON = withObject "Comment" $ \o -> do
-    v <- o .: "data"
+    v <- o .: "data" <|> pure o
     commentId <- CommentID <$> v .: "id"
     commentUrl <- (redditURL <>) <$> v .: "permalink"
     commentScore <- v .: "score"
@@ -396,7 +396,7 @@ data Account = Account
 
 instance FromJSON Account where
   parseJSON = withObject "Account" $ \o -> do
-    v <- o .: "data"
+    v <- o .: "data" <|> pure o
     accountId <- AccountID <$> v .: "id"
     accountUsername <- v .: "name"
     accountDisplayName <- v .: "subreddit" >>= (.: "title")
@@ -428,7 +428,7 @@ data Post = Post
     -- | Empty string if not a text post.
     postBody :: Text,
     -- | HTML version of post body. Empty string if not a text post.
-    postBodyHtml :: Text,
+    postBodyHtml :: Maybe Text,
     -- | For a link post, this is the link. For a text post, this is the same as @url@.
     postContentUrl :: Text,
     -- | None if not flaired.
@@ -443,7 +443,13 @@ data Post = Post
     -- | Whether the logged in user hid the post.
     postHidden :: Bool,
     postLocked :: Bool,
-    postStickied :: Bool
+    postStickied :: Bool,
+    -- | If this post is a crosspost, then this contains @Just@ the post ID of
+    -- the crosspost parent. Otherwise, this is @Nothing@.
+    postCrosspostParentId :: Maybe (ID Post),
+    -- | Actual contents of crosspost parents (if relevant). @Nothing@ if this
+    -- post is not a crosspost. Using this saves an API call.
+    postCrosspostParents :: Maybe [Post]
   }
   deriving (Show)
 
@@ -455,7 +461,9 @@ instance Ord Post where
 
 instance FromJSON Post where
   parseJSON = withObject "Post" $ \o -> do
-    v <- o .: "data"
+    -- The post data may either be the object itself, or it might be nested
+    -- under the 'data' key. We try the latter first, as that's more common.
+    v <- o .: "data" <|> pure o
     postId <- PostID <$> v .: "id"
     postUrl <- (redditURL <>) <$> v .: "permalink"
     postScore <- v .: "score"
@@ -465,7 +473,7 @@ instance FromJSON Post where
     postAuthorId <- v .:? "author_fullname"
     postTitle <- v .: "title"
     postBody <- v .: "selftext"
-    postBodyHtml <- v .: "selftext_html"
+    postBodyHtml <- v .:? "selftext_html"
     postContentUrl <- v .: "url"
     postFlairText <- v .: "link_flair_text"
     postSubreddit <- v .: "subreddit"
@@ -476,6 +484,8 @@ instance FromJSON Post where
     postHidden <- v .: "hidden"
     postLocked <- v .: "locked"
     postStickied <- v .: "stickied"
+    postCrosspostParentId <- v .:? "crosspost_parent"
+    postCrosspostParents <- v .:? "crosspost_parent_list"
     pure $ Post {..}
 
 -- Subreddit
@@ -498,7 +508,7 @@ data Subreddit = Subreddit
 
 instance FromJSON Subreddit where
   parseJSON = withObject "Subreddit" $ \o -> do
-    v <- o .: "data"
+    v <- o .: "data" <|> pure o
     subredditId <- SubredditID <$> v .: "id"
     subredditName <- v .: "display_name"
     subredditDescription <- v .: "public_description"
