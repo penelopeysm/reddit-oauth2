@@ -23,8 +23,8 @@ extra-source-files: CHANGELOG.md
 
 library
     exposed-modules:
-      Reddit,
-      Reddit.Auth,
+      Reddit
+      Reddit.Auth
       Reddit.Example
 
     other-modules:
@@ -32,22 +32,25 @@ library
       Reddit.Types
 
     default-extensions:
+      FlexibleInstances
+      GADTs
+      GeneralizedNewtypeDeriving
       OverloadedStrings
       RecordWildCards
       ScopedTypeVariables
-      FlexibleInstances
-      GADTs
 
     build-depends:
-        base >= 4.16.4.0 && < 5,
-        bytestring,
-        aeson,
-        text,
-        req,
-        time,
-        mtl,
-        containers,
-        modern-uri
+      base >= 4.16.4.0 && < 5,
+      aeson,
+      bytestring,
+      containers,
+      exceptions,
+      modern-uri,
+      mtl,
+      req,
+      text,
+      time,
+      transformers,
 
     hs-source-dirs:   src
     default-language: Haskell2010
@@ -59,11 +62,11 @@ executable reddit-oauth2
       OverloadedStrings
 
     build-depends:
-        base >= 4.16.4.0 && < 5,
-        reddit-oauth2,
-        bytestring,
-        text,
-        mtl
+      base >= 4.16.4.0 && < 5,
+      reddit-oauth2,
+      bytestring,
+      text,
+      mtl,
 
     hs-source-dirs:   app
     default-language: Haskell2010

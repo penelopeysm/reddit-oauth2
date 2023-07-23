@@ -37,7 +37,7 @@ getEnvAsText = fmap T.pack . getEnv . T.unpack
 -- input state, the comment it sees, and does some kind of action on Reddit that
 -- ultimately returns another 'Int'. The returned value will be used as the
 -- input the next time the callback is executed, i.e. on the next comment.
-replyIfHaskellGreat :: Int -> Comment -> RedditT Int
+replyIfHaskellGreat :: Int -> Comment -> RedditT IO Int
 replyIfHaskellGreat count cmt = do
   -- Print details about the comment on standard output
   let p = liftIO . T.putStrLn
@@ -77,7 +77,7 @@ main = do
   env <- authenticate creds userAgent
 
   -- Run the bot, refreshing every 5 seconds (the default).
-  runRedditT' env $ do
+  runRedditT env $ do
     commentStream defaultStreamSettings replyIfHaskellGreat 1 "haskell"
 
   -- commentStream is a recursive function and, in principle, should never end.
@@ -100,7 +100,7 @@ main = do
   let protectedAction =
         catch
           -- The original action
-          (runRedditT' env $ commentStream defaultStreamSettings replyIfHaskellGreat 1 "haskell")
+          (runRedditT env $ commentStream defaultStreamSettings replyIfHaskellGreat 1 "haskell")
           -- If we get an exception, print it, wait 5 seconds, then try again.
           ( \(e :: SomeException) -> do
               T.hPutStrLn stderr ("Exception: " <> T.pack (show e))

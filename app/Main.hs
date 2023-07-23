@@ -41,6 +41,6 @@ main = do
   env <- authenticate creds userAgent
   hSetBuffering stdout NoBuffering
 
-  runRedditT' env $ do
+  runRedditT env $ do
     post <- getPost (PostID "1555erh")
     liftIO $ print post

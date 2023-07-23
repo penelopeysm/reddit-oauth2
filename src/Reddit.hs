@@ -24,10 +24,11 @@ module Reddit
     RedditT (..),
     RedditEnv,
     runRedditT,
-    runRedditT',
-    runRedditTCleanup,
-    runRedditTCleanup',
     revokeToken,
+
+    -- * Exceptions
+    -- $exceptions
+    RedditException (..),
 
     -- ** Manual environment management
     -- $env_management
@@ -115,6 +116,7 @@ where
 import Control.Concurrent (threadDelay)
 import Control.Exception (Exception (..), finally, throwIO)
 import Control.Monad (foldM, void, when)
+import Control.Monad.Catch (MonadThrow (..))
 import Control.Monad.Reader
 import Data.Aeson
 import Data.Aeson.Types (Value (..), parse)
@@ -150,21 +152,48 @@ data RedditEnv = RedditEnv
     envUserAgent :: ByteString
   }
 
+-- | The type of exceptions thrown by this library.
+data RedditException
+  = -- | Network request that failed.
+    RedditReqException HttpException
+  | -- | Invalid JSON returned by the Reddit API.
+    RedditJsonException Text
+  | -- | Some other kind of Reddit API error.
+    RedditApiException Text
+  deriving (Show)
+
+instance Exception RedditException
+
+throwIOJson :: (MonadIO m) => String -> m a
+throwIOJson = liftIO . throwIO . RedditJsonException . T.pack
+
+throwIOApi :: (MonadIO m) => String -> m a
+throwIOApi = liftIO . throwIO . RedditApiException . T.pack
+
 -- | The type of a Reddit computation.
-type RedditT = ReaderT RedditEnv IO
+newtype RedditT m a = RedditT {unRedditT :: ReaderT RedditEnv m a}
+  deriving (Functor, Applicative, Monad, MonadReader RedditEnv, MonadTrans)
+
+instance (MonadIO m) => MonadIO (RedditT m) where
+  liftIO = RedditT . liftIO
+
+instance (MonadThrow m) => MonadThrow (RedditT m) where
+  throwM = RedditT . throwM
+
+instance (MonadFail m) => MonadFail (RedditT m) where
+  fail = RedditT . fail
 
 -- | Run a Reddit computation using a @RedditEnv@ value obtained through
 -- authentication (see [Authentication](#g:authentication)).
-runRedditT :: RedditT a -> RedditEnv -> IO a
-runRedditT = runReaderT
-
--- | @runRedditT'@ is @flip 'runRedditT'@ and is slightly more ergonomic.
-runRedditT' :: RedditEnv -> RedditT a -> IO a
-runRedditT' = flip runReaderT
+runRedditT :: RedditEnv -> RedditT m a -> m a
+runRedditT env = (`runReaderT` env) . unRedditT
 
 -- | Revoke an access token contained in a @RedditEnv@, rendering it unusable.
 -- If you want to continue performing queries after this, you will need to
 -- generate a new @RedditEnv@.
+--
+-- It is generally good practice to call this function when you are done using a
+-- token.
 revokeToken :: RedditEnv -> IO ()
 revokeToken env = do
   t <- R.readIORef (envTokenRef env)
@@ -176,19 +205,6 @@ revokeToken env = do
             <> "token_type_hint" =: TE.decodeUtf8 (Auth.tokenType t)
     req POST uri (ReqBodyUrlEnc body_params) ignoreResponse uat
 
--- | Run a Reddit computation, and additionally clean up the @RedditEnv@ value
--- by revoking the active access token after the computation finishes.
---
--- Doing this is generally good behaviour. Alternatively, you can manually use
--- 'revokeToken'.
-runRedditTCleanup :: RedditT a -> RedditEnv -> IO a
-runRedditTCleanup actn env =
-  finally (runRedditT actn env) (revokeToken env)
-
--- | Same as @flip 'runRedditTCleanup'@.
-runRedditTCleanup' :: RedditEnv -> RedditT a -> IO a
-runRedditTCleanup' = flip runRedditTCleanup
-
 -- $env_management
 -- For more complicated use cases, you will almost certainly have to perform
 -- more manual management of the @RedditEnv@ value. Specifically, you will want
@@ -198,12 +214,12 @@ runRedditTCleanup' = flip runRedditTCleanup
 -- The functions in this section aim to make this process smoother.
 
 -- | Extract the current OAuth2 token being used.
-getTokenFromEnv :: RedditT Auth.Token
-getTokenFromEnv = do
-  tRef <- asks envTokenRef
-  liftIO $ R.readIORef tRef
+getTokenFromEnv :: RedditEnv -> IO Auth.Token
+getTokenFromEnv env = do
+  let tRef = envTokenRef env
+  R.readIORef tRef
 
--- | Yada.
+-- | Construct a new RedditEnv
 mkEnvFromToken ::
   Auth.Token ->
   -- | User-agent
@@ -272,13 +288,13 @@ reauthenticate env = do
       R.writeIORef (envTokenRef env) token
     _ -> error "Not supported"
 
--- | Perform a RedditT action, but before running it, check the validity of the
+-- | Perform a RedditT IO action, but before running it, check the validity of the
 -- existing token and reauthenticate if it has expired already.
 --
 -- Generally, we only need to use this in functions which are actually querying
 -- a Reddit API endpoint (it doesn't need to be indiscriminately applied to all
--- functions with a RedditT type).
-withTokenCheck :: RedditT a -> RedditT a
+-- functions with a RedditT IO type).
+withTokenCheck :: (MonadIO m) => RedditT m a -> RedditT m a
 withTokenCheck action = do
   env <- ask
   t <- liftIO $ R.readIORef (envTokenRef env)
@@ -334,7 +350,7 @@ withUAToken env = do
 -- This assumes that the endpoint accepts the \'limit\' and \'after\'
 -- URL-encoded parameters.
 getListingSingle ::
-  (HasID t, FromJSON t) =>
+  (MonadIO m, HasID t, FromJSON t) =>
   -- | The number of things to ask for. Should really be 100 or fewer.
   Int ->
   -- | The value of @after@ to pass in the query.
@@ -344,11 +360,13 @@ getListingSingle ::
   -- | URL-encoded params. Use @mempty@ if not needed.
   Option 'Https ->
   -- | The things, plus the \'after\' field returned by Reddit.
-  RedditT ([t], Maybe Text)
+  RedditT m ([t], Maybe Text)
 getListingSingle size aft url in_params = withTokenCheck $ do
   env <- ask
   uat <- withUAToken env
-  when (size > 100) (error "getListingSingle: size should be 100 or less. This is a bug, please report it.")
+  when
+    (size > 100)
+    (throwIOApi "getListingSingle: size should be 100 or less. This is a bug, please report it.")
   let params =
         in_params
           <> uat
@@ -360,8 +378,9 @@ getListingSingle size aft url in_params = withTokenCheck $ do
   respBody <- liftIO $ runReq defaultHttpConfig $ do
     response <- req GET url NoReqBody lbsResponse params
     pure (responseBody response)
-  listing <- throwDecode respBody
-  pure (contents listing, after listing)
+  case eitherDecode respBody of
+    Left e -> throwIOJson e
+    Right listing -> pure (contents listing, after listing)
 
 -- | Internal function to fetch n <= 1000 results from a given URI. Assumes that
 -- the returned listing will be homogeneous.
@@ -369,7 +388,7 @@ getListingSingle size aft url in_params = withTokenCheck $ do
 -- This assumes that the endpoint accepts the \'count\' and \'after\'
 -- URL-encoded parameters.
 getListings ::
-  (HasID t, FromJSON t) =>
+  (MonadIO m, HasID t, FromJSON t) =>
   -- | The number of things to ask for. Must be 100 or fewer.
   Int ->
   -- | The value of \'after\'.
@@ -379,7 +398,7 @@ getListings ::
   -- | URL-encoded params. Use @mempty@ if not needed.
   Option 'Https ->
   -- | All the things, concatenated into a single list.
-  RedditT [t]
+  RedditT m [t]
 getListings size aft uri in_params = do
   if size <= 100
     then fst <$> getListingSingle size aft uri in_params
@@ -396,7 +415,7 @@ getListings size aft uri in_params = do
 -- | This is a generic function querying the /api/info endpoint.
 --
 -- TODO: Fix when the list is more than 100 elements long.
-getThingsByIDs :: (HasID t, FromJSON t) => [ID t] -> RedditT [t]
+getThingsByIDs :: (MonadIO m, HasID t, FromJSON t) => [ID t] -> RedditT m [t]
 getThingsByIDs ids = withTokenCheck $ do
   env <- ask
   uat <- withUAToken env
@@ -406,18 +425,20 @@ getThingsByIDs ids = withTokenCheck $ do
     let params = uat <> "id" =: fullNames
     response <- req GET uri NoReqBody lbsResponse params
     pure (responseBody response)
-  ct <- contents <$> throwDecode respBody
-  when
-    (length ct /= length ids)
-    (fail $ "Reddit response had incorrect length: expected " <> show (length ids) <> ", found " <> show (length ct))
-  pure ct
+  case contents <$> eitherDecode respBody of
+    Left e -> throwIOJson e
+    Right ct -> do
+      when
+        (length ct /= length ids)
+        (throwIOApi $ "Reddit response had incorrect length: expected " <> show (length ids) <> ", found " <> show (length ct))
+      pure ct
 
-getThingByID :: (HasID t, FromJSON t) => ID t -> RedditT t
+getThingByID :: (MonadIO m, HasID t, FromJSON t) => ID t -> RedditT m t
 getThingByID its_id = do
   thing <- getThingsByIDs [its_id]
   case thing of
     [t] -> pure t
-    _ -> fail "Reddit response had incorrect length"
+    _ -> throwIOApi "Reddit response had incorrect length"
 
 -- $comments
 -- Comments.
@@ -430,23 +451,25 @@ getThingByID its_id = do
 -- return a list of replies for each comment. If you want to see comment
 -- replies, you need to use 'getPostWithComments', which internally uses a
 -- different API endpoint.
-getComments :: [ID Comment] -> RedditT [Comment]
+getComments :: (MonadIO m) => [ID Comment] -> RedditT m [Comment]
 getComments = getThingsByIDs
 
 -- | Fetch a single comment given its ID. The same caveat described for
 -- 'getComments' also applies here.
-getComment :: ID Comment -> RedditT Comment
+getComment :: (MonadIO m) => ID Comment -> RedditT m Comment
 getComment = getThingByID
 
 -- | Add a new comment as a reply to an existing post or comment.
+--
+-- The 'CanCommentOn' constraint ensures that you can only reply to comments and
+-- posts.
 addNewComment ::
-  -- \| This constraint ensures that you can only reply to comments and posts.
-  (CanCommentOn a) =>
+  (CanCommentOn a, MonadIO m) =>
   -- | The ID of the thing being replied to.
   ID a ->
   -- | The contents of the comment (in Markdown)
   Text ->
-  RedditT ()
+  RedditT m ()
 addNewComment x body = withTokenCheck $ do
   env <- ask
   uat <- withUAToken env
@@ -458,24 +481,26 @@ addNewComment x body = withTokenCheck $ do
 
 -- | Get the most recent comments by a user.
 accountComments ::
+  (MonadIO m) =>
   -- | Number of comments to fetch (maximum 1000). See [the listings
   -- section](#g:listings) for an explanation of this parameter.
   Int ->
   -- | Username (without the @\/u\/@).
   Text ->
-  RedditT [Comment]
+  RedditT m [Comment]
 accountComments n uname =
   let uri = (https oauthUri /: "user" /: uname /: "comments")
    in getListings n Nothing uri mempty
 
 -- | Get the most recent comments on a subreddit.
 subredditComments ::
+  (MonadIO m) =>
   -- | Number of comments to fetch (maximum 1000). See [the listings
   -- section](#g:listings) for an explanation of this parameter.
   Int ->
   -- | Subreddit name (without the @\/r\/@).
   Text ->
-  RedditT [Comment]
+  RedditT m [Comment]
 subredditComments n sr =
   let uri = https oauthUri /: "r" /: sr /: "comments"
    in getListings n Nothing uri mempty
@@ -492,7 +517,7 @@ subredditComments n sr =
 -- replies: instead, they must be expanded one by one. You can use either
 -- 'expandTree' to perform expansion step-by-step, or use 'expandTreeFully' to
 -- recursively expand every collapsed reply.
-getPostWithComments :: ID Post -> RedditT (Post, [CommentTree])
+getPostWithComments :: (MonadIO m) => ID Post -> RedditT m (Post, [CommentTree])
 getPostWithComments (PostID p) = withTokenCheck $ do
   env <- ask
   uat <- withUAToken env
@@ -503,13 +528,15 @@ getPostWithComments (PostID p) = withTokenCheck $ do
   -- Reddit returns a JSON array where the first item is a listing containing
   -- the post, and the second a listing containing the comments. Thankfully, the
   -- default implementation for FromJSON (a, b) does exactly this.
-  (postListing, cmtListing) <- throwDecode respBody
-  case contents postListing of
-    [p] -> pure (p, contents cmtListing)
-    _ -> fail "Expected one post, got many"
+  case eitherDecode respBody of
+    Left e -> throwIOJson e
+    Right (postListing, cmtListing) -> do
+      case contents postListing of
+        [p] -> pure (p, contents cmtListing)
+        _ -> throwIOApi "Expected one post, got many"
 
 -- | Fetch unshown comments on a post.
-getMoreChildren :: ID Post -> [ID Comment] -> RedditT [MoreChildren]
+getMoreChildren :: (MonadIO m) => ID Post -> [ID Comment] -> RedditT m [MoreChildren]
 getMoreChildren pid cids =
   if null cids
     then pure []
@@ -526,17 +553,20 @@ getMoreChildren pid cids =
         response <- req GET uri NoReqBody lbsResponse query_params
         pure (responseBody response)
       -- The actual data we want is nested a few levels down.
-      Object v <- throwDecode respBody
-      case parse (\v -> v .: "json" >>= (.: "data") >>= (.: "things")) v of
-        Error err -> fail err
-        -- 'things' is the actual array of stuff we want
-        Success (things :: Value) -> case parse parseJSON things of
-          Error err' -> fail err'
-          Success result -> pure result
+      case eitherDecode respBody of
+        Left e -> throwIOJson e
+        Right (Object v) ->
+          case parse (\v -> v .: "json" >>= (.: "data") >>= (.: "things")) v of
+            Error err -> throwIOJson err
+            -- 'things' is the actual array of stuff we want
+            Success (things :: Value) -> case parse parseJSON things of
+              Error err' -> throwIOJson err'
+              Success result -> pure result
+        Right _ -> throwIOApi "getMoreChildren: expected JSON object"
 
 -- | Expand the first instance of @MoreComments@ in a tree. The required post ID
 -- is that of the post for which you are expanding comments.
-expandTree :: ID Post -> [CommentTree] -> RedditT [CommentTree]
+expandTree :: (MonadIO m) => ID Post -> [CommentTree] -> RedditT m [CommentTree]
 expandTree pid trees = case getFirstMore trees of
   Nothing -> pure trees
   Just m@(MoreComments cids) -> do
@@ -560,7 +590,7 @@ expandTree pid trees = case getFirstMore trees of
 -- of comments. It can't be sped up either, because [Reddit's
 -- API](https://www.reddit.com/dev/api/#GET_api_morechildren) stipulates that
 -- you cannot make concurrent requests to this endpoint.
-expandTreeFully :: ID Post -> [CommentTree] -> RedditT [CommentTree]
+expandTreeFully :: (MonadIO m) => ID Post -> [CommentTree] -> RedditT m [CommentTree]
 expandTreeFully pid trees = case getFirstMore trees of
   Nothing -> pure trees
   Just _ -> do
@@ -570,7 +600,7 @@ expandTreeFully pid trees = case getFirstMore trees of
     expandTreeFully pid trees'
 
 -- | Fetch the account of the currently logged-in user.
-myAccount :: RedditT Account
+myAccount :: (MonadIO m) => RedditT m Account
 myAccount = withTokenCheck $ do
   env <- ask
   uat <- withUAToken env
@@ -578,25 +608,25 @@ myAccount = withTokenCheck $ do
     let uri = https oauthUri /: "api" /: "v1" /: "me"
     response <- req GET uri NoReqBody lbsResponse uat
     pure (responseBody response)
-  -- This API endpoint is really weird, because the data it returns has a
-  -- different format. Don't ask why. Anyway, we need to reconstruct the outer
-  -- layer before we can use throwDecode (or parseJSON) on it.
-  throwDecode $ "{\"data\": " <> respBody <> "}"
+  case eitherDecode respBody of
+    Left e -> throwIOJson e
+    Right a -> pure a
 
 -- | Fetch a list of accounts given their IDs. More efficient than @map
 -- getAccount@ because it only makes one API call.
-getAccounts :: [ID Account] -> RedditT [Account]
+getAccounts :: (MonadIO m) => [ID Account] -> RedditT m [Account]
 getAccounts = getThingsByIDs
 
 -- | Fetch a single account given its ID.
-getAccount :: ID Account -> RedditT Account
+getAccount :: (MonadIO m) => ID Account -> RedditT m Account
 getAccount = getThingByID
 
 -- | Fetch details about a named user.
 getAccountByName ::
+  (MonadIO m) =>
   -- | Username (without the @\/u\/@).
   Text ->
-  RedditT Account
+  RedditT m Account
 getAccountByName uname = withTokenCheck $ do
   env <- ask
   uat <- withUAToken env
@@ -604,7 +634,9 @@ getAccountByName uname = withTokenCheck $ do
     let uri = https oauthUri /: "user" /: uname /: "about"
     response <- req GET uri NoReqBody lbsResponse uat
     pure (responseBody response)
-  throwDecode respBody
+  case eitherDecode respBody of
+    Left e -> throwIOJson e
+    Right a -> pure a
 
 -- | The timeframe over which to get top or most controversial posts.
 data Timeframe = Hour | Day | Week | Month | Year | All
@@ -614,24 +646,25 @@ data SubredditSort = Hot | New | Random | Rising | Top Timeframe | Controversial
 
 -- | Fetch a list of posts by their IDs. More efficient than @map getPost@
 -- because it only makes one API call.
-getPosts :: [ID Post] -> RedditT [Post]
+getPosts :: (MonadIO m) => [ID Post] -> RedditT m [Post]
 getPosts = getThingsByIDs
 
 -- | Fetch a single post given its ID.
 --
 -- If you want to fetch a post together with its comments, you can use
 -- 'getPostWithComments'.
-getPost :: ID Post -> RedditT Post
+getPost :: (MonadIO m) => ID Post -> RedditT m Post
 getPost = getThingByID
 
 -- | Get the most recent posts by a user.
 accountPosts ::
+  (MonadIO m) =>
   -- | Number of posts to fetch (maximum 1000). See [the listings
   -- section](#g:listings) for an explanation of this parameter.
   Int ->
   -- | Username (without the @\/u\/@).
   Text ->
-  RedditT [Post]
+  RedditT m [Post]
 accountPosts n uname = do
   let uri = https oauthUri /: "user" /: uname /: "submitted"
    in getListings n Nothing uri mempty
@@ -639,6 +672,7 @@ accountPosts n uname = do
 -- | Get the posts from the front page of a subreddit, with the ordering
 -- specified in the @SubredditSort@ argument.
 subredditPosts ::
+  (MonadIO m) =>
   -- | Number of posts to fetch (maximum 1000). See [the listings
   -- section](#g:listings) for an explanation of this parameter.
   Int ->
@@ -647,7 +681,7 @@ subredditPosts ::
   -- | Sort type for the subreddit posts. Entirely analogous to the options when
   -- browsing Reddit on the web.
   SubredditSort ->
-  RedditT [Post]
+  RedditT m [Post]
 subredditPosts n sr sort = do
   let timeframe_text tf = case tf of
         Hour -> "hour" :: Text -- the type checker needs help
@@ -668,7 +702,7 @@ subredditPosts n sr sort = do
 
 -- | Edit the contents of a comment or a text post. You must be authenticated as
 -- the person who posted it.
-edit :: (CanCommentOn a) => ID a -> Text -> RedditT ()
+edit :: (CanCommentOn a, MonadIO m) => ID a -> Text -> RedditT m ()
 edit id newBody = withTokenCheck $ do
   let fullName = mkFullNameFromID id
   env <- ask
@@ -683,7 +717,7 @@ edit id newBody = withTokenCheck $ do
 --
 -- If you want to remove a post or a comment on a subreddit you moderate, use
 -- 'remove' instead.
-delete :: (CanCommentOn a) => ID a -> RedditT ()
+delete :: (CanCommentOn a, MonadIO m) => ID a -> RedditT m ()
 delete id = withTokenCheck $ do
   let fullName = mkFullNameFromID id
   env <- ask
@@ -696,11 +730,11 @@ delete id = withTokenCheck $ do
 -- | As a moderator, remove a post or a comment. This is the inverse of
 -- 'approve'.
 remove ::
-  (CanCommentOn a) =>
+  (CanCommentOn a, MonadIO m) =>
   ID a ->
   -- | Whether the thing being removed is spam.
   Bool ->
-  RedditT ()
+  RedditT m ()
 remove id isSpam = withTokenCheck $ do
   let fullName = mkFullNameFromID id
   let spam :: Text = if isSpam then "true" else "false"
@@ -713,7 +747,7 @@ remove id isSpam = withTokenCheck $ do
 
 -- | As a moderator, approve a post or a comment. This is the inverse of
 -- 'remove'.
-approve :: (CanCommentOn a) => ID a -> RedditT ()
+approve :: (CanCommentOn a, MonadIO m) => ID a -> RedditT m ()
 approve id = withTokenCheck $ do
   let fullName = mkFullNameFromID id
   env <- ask
@@ -725,19 +759,20 @@ approve id = withTokenCheck $ do
 
 -- | Fetch a list of subreddits by their IDs. More efficient than @map
 -- getSubreddit@ because it only makes one API call.
-getSubreddits :: [ID Subreddit] -> RedditT [Subreddit]
+getSubreddits :: (MonadIO m) => [ID Subreddit] -> RedditT m [Subreddit]
 getSubreddits = getThingsByIDs
 
 -- | Fetch a single subreddit given its ID.
-getSubreddit :: ID Subreddit -> RedditT Subreddit
+getSubreddit :: (MonadIO m) => ID Subreddit -> RedditT m Subreddit
 getSubreddit = getThingByID
 
 -- | Fetch a list of subreddits by their names. More efficient than @map
 -- getSubredditByName@.
 getSubredditsByName ::
+  (MonadIO m) =>
   -- | List of subreddit names (without the @\/r\/@'s).
   [Text] ->
-  RedditT [Subreddit]
+  RedditT m [Subreddit]
 getSubredditsByName s_names = withTokenCheck $ do
   env <- ask
   uat <- withUAToken env
@@ -747,22 +782,25 @@ getSubredditsByName s_names = withTokenCheck $ do
     let req_params = uat <> "sr_name" =: allNames
     response <- req GET uri NoReqBody lbsResponse req_params
     pure (responseBody response)
-  psts <- contents <$> throwDecode respBody
-  when
-    (length psts /= length s_names)
-    (fail $ "Reddit response had incorrect length: expected " <> show (length s_names) <> ", found " <> show (length psts))
-  pure psts
+  case eitherDecode respBody of
+    Left e -> throwIOJson e
+    Right psts -> do
+      when
+        (length psts /= length s_names)
+        (throwIOApi $ "Reddit response had incorrect length: expected " <> show (length s_names) <> ", found " <> show (length psts))
+      pure psts
 
 -- | Fetch a single subreddit by its ID.
 getSubredditByName ::
+  (MonadIO m) =>
   -- | Subreddit name (without the @\/r\/@).
   Text ->
-  RedditT Subreddit
+  RedditT m Subreddit
 getSubredditByName s_name = do
   srd <- getSubredditsByName [s_name]
   case srd of
     [s] -> pure s
-    _ -> fail "Reddit response had incorrect length"
+    _ -> throwIOApi "Reddit response had incorrect length"
 
 -- $streams
 --
@@ -798,7 +836,14 @@ defaultStreamSettings =
     }
 
 -- Helper function.
-streamInner :: (Eq a) => StreamSettings -> Q.Queue a -> (t -> a -> RedditT t) -> t -> RedditT [a] -> RedditT ()
+streamInner ::
+  (Eq a, MonadIO m) =>
+  StreamSettings ->
+  Q.Queue a ->
+  (t -> a -> RedditT m t) ->
+  t ->
+  RedditT m [a] ->
+  RedditT m ()
 streamInner settings queue cb cbInit src = do
   -- `queue` essentially contains the last N items we've seen.
   liftIO $ threadDelay (floorDoubleInt (streamsDelay settings * 1000000))
@@ -823,16 +868,16 @@ streamInner settings queue cb cbInit src = do
 -- be changed using the 'streamsDelay' and 'streamsStorageSize' fields in the
 -- 'StreamSettings' used.
 stream ::
-  (Eq a) =>
+  (Eq a, MonadIO m) =>
   -- | Settings.
   StreamSettings ->
   -- | A callback function to execute on all things found.
-  (state -> a -> RedditT state) ->
+  (state -> a -> RedditT m state) ->
   -- | The initial state for the callback function.
   state ->
   -- | The source of things to iterate over.
-  RedditT [a] ->
-  RedditT ()
+  RedditT m [a] ->
+  RedditT m ()
 stream settings cb cbInit src = do
   first <- src
   streamInner settings (Q.fromList (streamsStorageSize settings) first) cb cbInit src
@@ -840,27 +885,28 @@ stream settings cb cbInit src = do
 -- | @stream'@ is a simpler version of @stream@, which accepts a callback that
 -- doesn't use state.
 stream' ::
-  (Eq a) =>
+  (Eq a, MonadIO m) =>
   -- | Settings.
   StreamSettings ->
   -- | A simple callback function which iterates over all things seen.
-  (a -> RedditT ()) ->
+  (a -> RedditT m ()) ->
   -- | The source of things to iterate over.
-  RedditT [a] ->
-  RedditT ()
+  RedditT m [a] ->
+  RedditT m ()
 stream' settings cb' = stream settings (const cb') ()
 
 -- | Get a stream of new posts on a subreddit.
 postStream ::
+  (MonadIO m) =>
   -- | Settings.
   StreamSettings ->
   -- | Callback function.
-  (state -> Post -> RedditT state) ->
+  (state -> Post -> RedditT m state) ->
   -- | Initial state for callback.
   state ->
   -- | Subreddit name (without the @\/r\/@).
   Text ->
-  RedditT ()
+  RedditT m ()
 postStream settings cb cbInit sr = stream settings cb cbInit (subredditPosts 100 sr New)
 
 -- | Get a stream of new comments on a subreddit.
@@ -872,13 +918,14 @@ postStream settings cb cbInit sr = stream settings cb cbInit (subredditPosts 100
 -- @NeverEdited@ for comments edited within the 3-minute grace period (i.e.
 -- \'ninja edits\').
 commentStream ::
+  (MonadIO m) =>
   -- | Settings.
   StreamSettings ->
   -- | Callback function.
-  (state -> Comment -> RedditT state) ->
+  (state -> Comment -> RedditT m state) ->
   -- | Initial state for callback.
   state ->
   -- | Subreddit name (without the @\/r\/@).
   Text ->
-  RedditT ()
+  RedditT m ()
 commentStream settings cb cbInit sr = stream settings cb cbInit (subredditComments 100 sr)
