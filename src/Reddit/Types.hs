@@ -1,4 +1,5 @@
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE DataKinds #-}
 
 -- |
 -- Module      : Reddit.Types
@@ -12,7 +13,13 @@
 -- the JSON response that Reddit gives. If there is a particular piece of
 -- information you need, please feel free to make an issue or PR.
 module Reddit.Types
-  ( HiddenText (..),
+  ( RedditT (..),
+    RedditEnv (..),
+    runRedditT,
+    RedditException (..),
+    throwIOJson,
+    throwIOApi,
+    HiddenText (..),
     ID (..),
     Listing (..),
     Comment (..),
@@ -35,8 +42,15 @@ module Reddit.Types
 where
 
 import Control.Applicative ((<|>))
+import Control.Exception (Exception, throwIO)
+import Control.Monad.Catch (MonadThrow (..))
+import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad.Reader (MonadReader (..))
+import Control.Monad.Trans.Reader (ReaderT (..))
 import Data.Aeson
 import Data.Aeson.Types (Parser (..))
+import Data.ByteString (ByteString)
+import qualified Data.IORef as R
 import Data.List (foldl')
 import Data.Monoid (First (..), getFirst)
 import qualified Data.Set as S
@@ -44,6 +58,66 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.Clock
 import Data.Time.Clock.POSIX (posixSecondsToUTCTime)
+import Reddit.Auth
+import Network.HTTP.Req
+
+-- * Reddit monad transformer
+
+-- | Everything required to query the Reddit API.
+--
+-- This is a record type. However, in principle, you should not need to edit
+-- anything here, so the field accessors are not exported. If you need to
+-- extract the token, you can use 'getTokenFromEnv'.
+data RedditEnv = RedditEnv
+  { -- | OAuth2 token contents.
+    envTokenRef :: R.IORef Token,
+    -- | Credentials used to log in. Must be stored to allow for
+    -- reauthentication if and when the token expires.
+    envCredentials :: Credentials,
+    -- | The user-agent used for all requests.
+    envUserAgent :: ByteString
+  }
+
+-- | The type of a Reddit computation.
+newtype RedditT m a = RedditT {unRedditT :: ReaderT RedditEnv m a}
+  deriving (Functor, Applicative, Monad, MonadReader RedditEnv)
+
+instance (MonadIO m) => MonadIO (RedditT m) where
+  liftIO = RedditT . liftIO
+
+instance (MonadThrow m) => MonadThrow (RedditT m) where
+  throwM = RedditT . throwM
+
+instance (MonadFail m) => MonadFail (RedditT m) where
+  fail = RedditT . fail
+
+-- | Run a Reddit computation using a @RedditEnv@ value obtained through
+-- authentication (see [Authentication](#g:authentication)).
+runRedditT :: RedditEnv -> RedditT m a -> m a
+runRedditT env = (`runReaderT` env) . unRedditT
+
+-- * Exceptions
+
+-- | The type of exceptions thrown by this library.
+data RedditException
+  = -- | Network request that failed.
+    RedditReqException HttpException
+  | -- | Invalid JSON returned by the Reddit API.
+    RedditJsonException Text
+  | -- | Some other kind of Reddit API error.
+    RedditApiException Text
+  deriving (Show)
+
+instance Exception RedditException
+
+throwIOJson :: (MonadIO m) => String -> m a
+throwIOJson = liftIO . throwIO . RedditJsonException . T.pack
+
+throwIOApi :: (MonadIO m) => String -> m a
+throwIOApi = liftIO . throwIO . RedditApiException . T.pack
+
+
+-- * Other stuff
 
 -- | Same as @Data.Text.Text@, but has a Show instance where it's not printed.
 newtype HiddenText = HiddenText {getHiddenText :: Text} deriving (Eq, Ord)

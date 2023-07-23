@@ -29,6 +29,7 @@ library
 
     other-modules:
       Reddit.Queue
+      Reddit.Stream
       Reddit.Types
 
     default-extensions:

@@ -28,7 +28,6 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
 import Data.Time.Clock
 import Network.HTTP.Req
-import Reddit.Types
 import qualified Text.URI as URI
 
 -- | The @Credentials@ type contains all the information you need to

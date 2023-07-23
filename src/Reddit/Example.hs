@@ -78,7 +78,7 @@ main = do
 
   -- Run the bot, refreshing every 5 seconds (the default).
   runRedditT env $ do
-    commentStream defaultStreamSettings replyIfHaskellGreat 1 "haskell"
+    stream defaultStreamSettings replyIfHaskellGreat 1 id (subredditComments 100 "haskell")
 
   -- commentStream is a recursive function and, in principle, should never end.
   -- However, the implementation above is quite naive: in practice you have to
@@ -100,7 +100,7 @@ main = do
   let protectedAction =
         catch
           -- The original action
-          (runRedditT env $ commentStream defaultStreamSettings replyIfHaskellGreat 1 "haskell")
+          (runRedditT env $ stream defaultStreamSettings replyIfHaskellGreat 1 id (subredditComments 100 "haskell"))
           -- If we get an exception, print it, wait 5 seconds, then try again.
           ( \(e :: SomeException) -> do
               T.hPutStrLn stderr ("Exception: " <> T.pack (show e))

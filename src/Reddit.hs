@@ -95,12 +95,10 @@ module Reddit
 
     -- * Streams #streams#
     -- $streams
-    StreamSettings (..),
-    defaultStreamSettings,
-    stream,
-    stream',
-    postStream,
-    commentStream,
+    Reddit.Stream.StreamSettings (..),
+    Reddit.Stream.defaultStreamSettings,
+    Reddit.Stream.stream,
+    Reddit.Stream.stream',
 
     -- * Listings #listings#
     -- $listings
@@ -115,7 +113,7 @@ where
 
 import Control.Concurrent (threadDelay)
 import Control.Exception (Exception (..), finally, throwIO)
-import Control.Monad (foldM, void, when)
+import Control.Monad (void, when)
 import Control.Monad.Catch (MonadThrow (..))
 import Control.Monad.Reader
 import Data.Aeson
@@ -131,62 +129,10 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
 import qualified Data.Text.IO as T
 import Data.Time.Clock
-import GHC.Float.RealFracMethods (floorDoubleInt)
 import Network.HTTP.Req
 import qualified Reddit.Auth as Auth
-import qualified Reddit.Queue as Q
+import Reddit.Stream
 import Reddit.Types
-
--- | Everything required to query the Reddit API.
---
--- This is a record type. However, in principle, you should not need to edit
--- anything here, so the field accessors are not exported. If you need to
--- extract the token, you can use 'getTokenFromEnv'.
-data RedditEnv = RedditEnv
-  { -- | OAuth2 token contents.
-    envTokenRef :: R.IORef Auth.Token,
-    -- | Credentials used to log in. Must be stored to allow for
-    -- reauthentication if and when the token expires.
-    envCredentials :: Auth.Credentials,
-    -- | The user-agent used for all requests.
-    envUserAgent :: ByteString
-  }
-
--- | The type of exceptions thrown by this library.
-data RedditException
-  = -- | Network request that failed.
-    RedditReqException HttpException
-  | -- | Invalid JSON returned by the Reddit API.
-    RedditJsonException Text
-  | -- | Some other kind of Reddit API error.
-    RedditApiException Text
-  deriving (Show)
-
-instance Exception RedditException
-
-throwIOJson :: (MonadIO m) => String -> m a
-throwIOJson = liftIO . throwIO . RedditJsonException . T.pack
-
-throwIOApi :: (MonadIO m) => String -> m a
-throwIOApi = liftIO . throwIO . RedditApiException . T.pack
-
--- | The type of a Reddit computation.
-newtype RedditT m a = RedditT {unRedditT :: ReaderT RedditEnv m a}
-  deriving (Functor, Applicative, Monad, MonadReader RedditEnv, MonadTrans)
-
-instance (MonadIO m) => MonadIO (RedditT m) where
-  liftIO = RedditT . liftIO
-
-instance (MonadThrow m) => MonadThrow (RedditT m) where
-  throwM = RedditT . throwM
-
-instance (MonadFail m) => MonadFail (RedditT m) where
-  fail = RedditT . fail
-
--- | Run a Reddit computation using a @RedditEnv@ value obtained through
--- authentication (see [Authentication](#g:authentication)).
-runRedditT :: RedditEnv -> RedditT m a -> m a
-runRedditT env = (`runReaderT` env) . unRedditT
 
 -- | Revoke an access token contained in a @RedditEnv@, rendering it unusable.
 -- If you want to continue performing queries after this, you will need to
@@ -204,6 +150,13 @@ revokeToken env = do
           "token" =: TE.decodeUtf8 (Auth.token t)
             <> "token_type_hint" =: TE.decodeUtf8 (Auth.tokenType t)
     req POST uri (ReqBodyUrlEnc body_params) ignoreResponse uat
+
+-- | Convenience function to generate HTTP headers required for basic
+-- authentication.
+withUAToken :: (MonadIO m) => RedditEnv -> m (Option 'Https)
+withUAToken env = do
+  t <- liftIO $ R.readIORef (envTokenRef env)
+  pure $ header "user-agent" (envUserAgent env) <> oAuth2Bearer (Auth.token t)
 
 -- $env_management
 -- For more complicated use cases, you will almost certainly have to perform
@@ -307,13 +260,6 @@ withTokenCheck action = do
 
 oauthUri :: Text
 oauthUri = "oauth.reddit.com"
-
--- | Convenience function to generate HTTP headers required for basic
--- authentication.
-withUAToken :: (MonadIO m) => RedditEnv -> m (Option 'Https)
-withUAToken env = do
-  t <- liftIO $ R.readIORef (envTokenRef env)
-  pure $ header "user-agent" (envUserAgent env) <> oAuth2Bearer (Auth.token t)
 
 -- $listings
 -- Listings are Reddit's way of paginating things (i.e. comments, posts, etc.).
@@ -809,123 +755,4 @@ getSubredditByName s_name = do
 -- tasks, usually iterating over a list of most recent posts / comments on a
 -- subreddit.
 --
--- The most general function is @stream@; a usage example is provided in the
--- 'Reddit.Example' module. @postStream@ and @commentStream@ are specialised
--- versions which save a tiny bit of typing.
-
--- | Available configuration variables for streams.
-data StreamSettings = StreamSettings
-  { -- | Delay (in seconds) between successive requests when using
-    -- [streams](#streams). Reddit says you should not be querying more than 60
-    -- times in a minute, so this should not go below 1. Defaults to 5.
-    streamsDelay :: Double,
-    -- | Number of \'seen\' items to keep in memory when running a stream. If
-    -- you are requesting N items at a go, there doesn't appear to be much point
-    -- in making this larger than N. N should probably be 100, but this defaults
-    -- to 250 to be safe, because I'm not sure if there are weird edge cases.
-    streamsStorageSize :: Int
-  }
-
--- | Default stream settings. See 'StreamSettings' for the specification of
--- these values.
-defaultStreamSettings :: StreamSettings
-defaultStreamSettings =
-  StreamSettings
-    { streamsDelay = 5,
-      streamsStorageSize = 250
-    }
-
--- Helper function.
-streamInner ::
-  (Eq a, MonadIO m) =>
-  StreamSettings ->
-  Q.Queue a ->
-  (t -> a -> RedditT m t) ->
-  t ->
-  RedditT m [a] ->
-  RedditT m ()
-streamInner settings queue cb cbInit src = do
-  -- `queue` essentially contains the last N items we've seen.
-  liftIO $ threadDelay (floorDoubleInt (streamsDelay settings * 1000000))
-  items <- src
-  let (queue', unique) = Q.merge items queue
-  cbUpdated <- foldM cb cbInit unique
-  streamInner settings queue' cb cbUpdated src
-
--- | If you have an action which generates a list of things (with the type
--- @RedditT [a]@), then "stream" turns this an action which
--- executes a callback function on an infinite list of things. It does so by
--- repeatedly fetching the list of either comments or posts.
---
--- Apart from the thing being acted on, the callback function is allowed to also
--- take, as input, some kind of state, and update that state by returning a new
--- value. This allows the user to, for example, keep track of how many things
--- have been seen so far, or perform actions conditionally based on what the
--- stream has previously thrown up.
---
--- You can adjust the frequency with which the stream is refreshed, and
--- secondly, the number of \'seen\' items which are stored in memory. These can
--- be changed using the 'streamsDelay' and 'streamsStorageSize' fields in the
--- 'StreamSettings' used.
-stream ::
-  (Eq a, MonadIO m) =>
-  -- | Settings.
-  StreamSettings ->
-  -- | A callback function to execute on all things found.
-  (state -> a -> RedditT m state) ->
-  -- | The initial state for the callback function.
-  state ->
-  -- | The source of things to iterate over.
-  RedditT m [a] ->
-  RedditT m ()
-stream settings cb cbInit src = do
-  first <- src
-  streamInner settings (Q.fromList (streamsStorageSize settings) first) cb cbInit src
-
--- | @stream'@ is a simpler version of @stream@, which accepts a callback that
--- doesn't use state.
-stream' ::
-  (Eq a, MonadIO m) =>
-  -- | Settings.
-  StreamSettings ->
-  -- | A simple callback function which iterates over all things seen.
-  (a -> RedditT m ()) ->
-  -- | The source of things to iterate over.
-  RedditT m [a] ->
-  RedditT m ()
-stream' settings cb' = stream settings (const cb') ()
-
--- | Get a stream of new posts on a subreddit.
-postStream ::
-  (MonadIO m) =>
-  -- | Settings.
-  StreamSettings ->
-  -- | Callback function.
-  (state -> Post -> RedditT m state) ->
-  -- | Initial state for callback.
-  state ->
-  -- | Subreddit name (without the @\/r\/@).
-  Text ->
-  RedditT m ()
-postStream settings cb cbInit sr = stream settings cb cbInit (subredditPosts 100 sr New)
-
--- | Get a stream of new comments on a subreddit.
---
--- Note that this also includes edited comments (that's not a design choice,
--- it's just how the Reddit API works). If you want to only act on newly posted
--- comments, you can check the @editedTime@ field of the comment in your
--- callback function; however, note that this will still show up as
--- @NeverEdited@ for comments edited within the 3-minute grace period (i.e.
--- \'ninja edits\').
-commentStream ::
-  (MonadIO m) =>
-  -- | Settings.
-  StreamSettings ->
-  -- | Callback function.
-  (state -> Comment -> RedditT m state) ->
-  -- | Initial state for callback.
-  state ->
-  -- | Subreddit name (without the @\/r\/@).
-  Text ->
-  RedditT m ()
-commentStream settings cb cbInit sr = stream settings cb cbInit (subredditComments 100 sr)
+-- A simple usage example is provided in the 'Reddit.Example' module.
