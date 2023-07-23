@@ -30,8 +30,8 @@ import System.Environment (getEnv)
 import System.IO (stderr)
 
 -- | 'System.Environment.getEnv' but acts on 'Data.Text.Text' values.
-getEnvAsText :: T.Text -> IO T.Text
-getEnvAsText = fmap T.pack . getEnv . T.unpack
+getEnvAsText :: String -> IO T.Text
+getEnvAsText = fmap T.pack . getEnv
 
 -- | An example of a callback function acting on comments. It takes an 'Int'
 -- input state, the comment it sees, and does some kind of action on Reddit that
@@ -40,20 +40,22 @@ getEnvAsText = fmap T.pack . getEnv . T.unpack
 replyIfHaskellGreat :: Int -> Comment -> RedditT IO Int
 replyIfHaskellGreat count cmt = do
   -- Print details about the comment on standard output
-  let p = liftIO . T.putStrLn
-  p ""
-  p "Found new comment!"
-  p $ "By    : /u/" <> commentAuthor cmt
-  p $ "Link  : " <> commentUrl cmt
-  p $ "Text  : " <> commentBody cmt
-  p $ T.pack ("Comments seen so far: " <> show count)
-
+  mapM_
+    (liftIO . T.putStrLn)
+    [ "",
+      "Found new comment!",
+      "By    : /u/" <> commentAuthor cmt,
+      "Link  : " <> commentUrl cmt,
+      "Text  : " <> commentBody cmt,
+      T.pack ("Comments seen so far: " <> show count)
+    ]
   let triggerText = "Haskell is great!!!!!!!!"
   let replyText = "Indeed, it is!"
   -- Check whether it contains the trigger text, and reply if necessary
-  when
-    (triggerText `T.isInfixOf` commentBody cmt)
-    (p "Replying to it..." >> addNewComment (commentId cmt) replyText)
+  when (triggerText `T.isInfixOf` commentBody cmt) $ do
+    liftIO $ T.putStrLn "Replying to it..."
+    addNewComment (commentId cmt) replyText
+  -- Increment the count and return
   pure (count + 1)
 
 -- | Run the bot.
@@ -65,7 +67,8 @@ main = do
   clientID <- getEnvAsText "REDDIT_ID"
   clientSecret <- getEnvAsText "REDDIT_SECRET"
   let userAgent = "your user-agent here"
-  -- The next line can be shortened with RecordWildCards if you want.
+
+  -- Get the RedditEnv term needed to run Reddit queries by authenticating.
   let creds =
         OwnerCredentials
           { ownerUsername = username,
@@ -73,38 +76,13 @@ main = do
             ownerClientId = clientID,
             ownerClientSecret = clientSecret
           }
-  -- Get the RedditEnv term needed to run Reddit queries.
   env <- authenticate creds userAgent
 
   -- Run the bot, refreshing every 5 seconds (the default).
-  runRedditT env $ do
-    stream defaultStreamSettings replyIfHaskellGreat 1 id (subredditComments 100 "haskell")
-
-  -- commentStream is a recursive function and, in principle, should never end.
-  -- However, the implementation above is quite naive: in practice you have to
-  -- account for exceptions, not least because Reddit servers seem to break
-  -- about once every day. The easiest way to do this is to use the combinators
-  -- in Control.Exception. The method shown here is quite crude, see e.g. the
-  -- Control.Exception docs, or Neil Mitchell's blog post
-  -- http://neilmitchell.blogspot.com/2015/05/handling-control-c-in-haskell.html
-  -- for a better discussion.
-  --
-  -- There is a related issue, in that you can't extract the value of `count` so
-  -- far if an exception is raised. If you wanted to do this properly, you
-  -- probably need to use something like a `Data.IORef` to store the value of
-  -- `count`.
-  --
-  -- Finally, note that, even though this nominally catches Ctrl-C exceptions,
-  -- you can still kill the bot by pressing Ctrl-C twice:
-  -- https://stackoverflow.com/questions/2349233
-  let protectedAction =
-        catch
-          -- The original action
-          (runRedditT env $ stream defaultStreamSettings replyIfHaskellGreat 1 id (subredditComments 100 "haskell"))
-          -- If we get an exception, print it, wait 5 seconds, then try again.
-          ( \(e :: SomeException) -> do
-              T.hPutStrLn stderr ("Exception: " <> T.pack (show e))
-              threadDelay 5000000
-              protectedAction
-          )
-  protectedAction
+  runRedditT env $
+    stream
+      defaultStreamSettings             -- Stream configuration.
+      replyIfHaskellGreat               -- The action to run on each thing (a callback).
+      1                                 -- The initial state passed to the callback.
+      id                                -- Convert m [a] to IO a. Here, m is IO so we just use id.
+      (subredditComments 100 "haskell") -- A RedditT m [a] action which generates the things we act on.
