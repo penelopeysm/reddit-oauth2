@@ -1,5 +1,5 @@
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 -- |
 -- Module      : Reddit.Types
@@ -46,6 +46,7 @@ import Control.Exception (Exception, throwIO)
 import Control.Monad.Catch (MonadThrow (..))
 import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.Reader (MonadReader (..))
+import Control.Monad.Trans.Class (MonadTrans (..))
 import Control.Monad.Trans.Reader (ReaderT (..))
 import Data.Aeson
 import Data.Aeson.Types (Parser (..))
@@ -58,8 +59,8 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.Clock
 import Data.Time.Clock.POSIX (posixSecondsToUTCTime)
-import Reddit.Auth
 import Network.HTTP.Req
+import Reddit.Auth
 
 -- * Reddit monad transformer
 
@@ -80,7 +81,7 @@ data RedditEnv = RedditEnv
 
 -- | The type of a Reddit computation.
 newtype RedditT m a = RedditT {unRedditT :: ReaderT RedditEnv m a}
-  deriving (Functor, Applicative, Monad, MonadReader RedditEnv)
+  deriving (Functor, Applicative, Monad, MonadReader RedditEnv, MonadTrans)
 
 instance (MonadIO m) => MonadIO (RedditT m) where
   liftIO = RedditT . liftIO
@@ -115,7 +116,6 @@ throwIOJson = liftIO . throwIO . RedditJsonException . T.pack
 
 throwIOApi :: (MonadIO m) => String -> m a
 throwIOApi = liftIO . throwIO . RedditApiException . T.pack
-
 
 -- * Other stuff
 
