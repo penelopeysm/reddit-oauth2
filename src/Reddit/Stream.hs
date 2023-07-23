@@ -7,6 +7,7 @@ module Reddit.Stream
 where
 
 import Control.Concurrent (threadDelay)
+import Control.Concurrent.Async (concurrently)
 import Control.Exception (catch)
 import Control.Monad (foldM)
 import Control.Monad.IO.Class (MonadIO (..))
@@ -69,17 +70,17 @@ streamInner ::
   RedditT m [a] ->
   RedditT m ()
 streamInner settings seen cb cbInit unwrapM src = do
-  liftIO $ threadDelay (floorDoubleInt (streamsDelay settings * 1000000))
   env <- ask
-  items <-
-    liftIO $
-      if streamsCatch settings
-        then do
-          catch
-            (unwrapM $ runRedditT env src)
-            (\e -> hPrint stderr (e :: RedditException) >> pure [])
-        else do
-          unwrapM $ runRedditT env src
+  let timer = threadDelay (floorDoubleInt (streamsDelay settings * 1000000))
+  let getItems =
+        if streamsCatch settings
+          then do
+            catch
+              (unwrapM $ runRedditT env src)
+              (\e -> hPrint stderr (e :: RedditException) >> pure [])
+          else do
+            unwrapM $ runRedditT env src
+  (_, items) <- liftIO $ concurrently timer getItems
   let (seen', unique) = Q.merge items seen
   cbUpdated <- foldM cb cbInit $ if streamsCheckUniqueness settings then unique else items
   streamInner settings seen' cb cbUpdated unwrapM src
