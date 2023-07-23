@@ -1,4 +1,10 @@
-module Reddit.Stream where
+module Reddit.Stream
+  ( StreamSettings (..),
+    defaultStreamSettings,
+    stream,
+    stream',
+  )
+where
 
 import Control.Concurrent (threadDelay)
 import Control.Exception (catch)
@@ -21,14 +27,24 @@ data StreamSettings = StreamSettings
     streamsDelay :: Double,
     -- | Number of \'seen\' items to keep in memory when running a stream. If
     -- you are requesting N items at a go, there doesn't appear to be much point
-    -- in making this larger than N. N should probably be 100, but this defaults
-    -- to 250 to be safe, because I'm not sure if there are weird edge cases.
+    -- in making this larger than N. Defaults to 250.
     streamsStorageSize :: Int,
-    -- | Whether to catch errors in the stream. If set to True (the default),
+    -- | Whether to catch errors in the stream. If set to @True@ (the default),
     -- then if a 'RedditException' is raised at any point in the stream, it is
-    -- logged to stderr and the stream continues. If False, errors are
+    -- logged to stderr and the stream continues. If @False@, errors are
     -- propagated upwards.
-    streamsCatch :: Bool
+    --
+    -- Note that the Reddit API tends to break down quite regularly, so if you
+    -- turn this off, chances are your stream will stop.
+    streamsCatch :: Bool,
+    -- | Whether to perform internal checks for item uniqueness. If set to
+    -- @True@ (the default), then the Eq constraint is used to ensure that only
+    -- unique items are passed to the callback function.
+    --
+    -- If @False@, then all items found are passed to the callback function.
+    -- This is useful if you plan to do some other kind of uniqueness check,
+    -- e.g. by looking it up in a database.
+    streamsCheckUniqueness :: Bool
   }
 
 -- | Default stream settings. See 'StreamSettings' for the specification of
@@ -38,7 +54,8 @@ defaultStreamSettings =
   StreamSettings
     { streamsDelay = 5,
       streamsStorageSize = 250,
-      streamsCatch = True
+      streamsCatch = True,
+      streamsCheckUniqueness = True
     }
 
 -- Helper function.
@@ -64,7 +81,7 @@ streamInner settings seen cb cbInit unwrapM src = do
         else do
           unwrapM $ runRedditT env src
   let (seen', unique) = Q.merge items seen
-  cbUpdated <- foldM cb cbInit unique
+  cbUpdated <- foldM cb cbInit $ if streamsCheckUniqueness settings then unique else items
   streamInner settings seen' cb cbUpdated unwrapM src
 
 -- | If you have an action which generates a list of things (with the type
