@@ -7,9 +7,11 @@ import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.Reader (ask)
 import Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.Text.IO as TIO
 import GHC.Float.RealFracMethods (floorDoubleInt)
 import qualified Reddit.Queue as Q
 import Reddit.Types
+import System.IO (hPrint, stderr)
 
 -- | Available configuration variables for streams.
 data StreamSettings = StreamSettings
@@ -21,7 +23,12 @@ data StreamSettings = StreamSettings
     -- you are requesting N items at a go, there doesn't appear to be much point
     -- in making this larger than N. N should probably be 100, but this defaults
     -- to 250 to be safe, because I'm not sure if there are weird edge cases.
-    streamsStorageSize :: Int
+    streamsStorageSize :: Int,
+    -- | Whether to catch errors in the stream. If set to True (the default),
+    -- then if a 'RedditException' is raised at any point in the stream, it is
+    -- logged to stderr and the stream continues. If False, errors are
+    -- propagated upwards.
+    streamsCatch :: Bool
   }
 
 -- | Default stream settings. See 'StreamSettings' for the specification of
@@ -30,7 +37,8 @@ defaultStreamSettings :: StreamSettings
 defaultStreamSettings =
   StreamSettings
     { streamsDelay = 5,
-      streamsStorageSize = 250
+      streamsStorageSize = 250,
+      streamsCatch = True
     }
 
 -- Helper function.
@@ -43,20 +51,22 @@ streamInner ::
   (m [a] -> IO [a]) ->
   RedditT m [a] ->
   RedditT m ()
-streamInner settings queue cb cbInit unwrapM src = do
+streamInner settings seen cb cbInit unwrapM src = do
   liftIO $ threadDelay (floorDoubleInt (streamsDelay settings * 1000000))
   env <- ask
-
   items <-
     liftIO $
-      catch
-        (unwrapM $ runRedditT env src)
-        (\e -> print (e :: RedditException) >> pure [])
-  -- `queue` essentially contains the last N items we've seen.
+      if streamsCatch settings
+        then do
+          catch
+            (unwrapM $ runRedditT env src)
+            (\e -> hPrint stderr (e :: RedditException) >> pure [])
+        else do
+          unwrapM $ runRedditT env src
   items <- src
-  let (queue', unique) = Q.merge items queue
+  let (seen', unique) = Q.merge items seen
   cbUpdated <- foldM cb cbInit unique
-  streamInner settings queue' cb cbUpdated unwrapM src
+  streamInner settings seen' cb cbUpdated unwrapM src
 
 -- | If you have an action which generates a list of things (with the type
 -- @RedditT [a]@), then "stream" turns this an action which
