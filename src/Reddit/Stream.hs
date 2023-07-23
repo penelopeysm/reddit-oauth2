@@ -63,7 +63,6 @@ streamInner settings seen cb cbInit unwrapM src = do
             (\e -> hPrint stderr (e :: RedditException) >> pure [])
         else do
           unwrapM $ runRedditT env src
-  items <- src
   let (seen', unique) = Q.merge items seen
   cbUpdated <- foldM cb cbInit unique
   streamInner settings seen' cb cbUpdated unwrapM src
