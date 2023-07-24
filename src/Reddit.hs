@@ -112,7 +112,7 @@ module Reddit
 where
 
 import Control.Concurrent (threadDelay)
-import Control.Exception (Exception (..), finally, throwIO)
+import Control.Exception (Exception (..), catch, finally, throwIO)
 import Control.Monad (void, when)
 import Control.Monad.Catch (MonadThrow (..))
 import Control.Monad.Reader
@@ -144,7 +144,7 @@ revokeToken :: RedditEnv -> IO ()
 revokeToken env = do
   t <- R.readIORef (envTokenRef env)
   uat <- withUAToken env
-  void $ runReq defaultHttpConfig $ do
+  void $ runReq' $ do
     let uri = https "www.reddit.com" /: "api" /: "v1" /: "revoke_token"
     let body_params =
           "token" =: TE.decodeUtf8 (Auth.token t)
@@ -321,7 +321,7 @@ getListingSingle size aft url in_params = withTokenCheck $ do
                  Just t -> "after" =: t
                  Nothing -> mempty
              )
-  respBody <- liftIO $ runReq defaultHttpConfig $ do
+  respBody <- liftIO $ runReq' $ do
     response <- req GET url NoReqBody lbsResponse params
     pure (responseBody response)
   case eitherDecode respBody of
@@ -366,7 +366,7 @@ getThingsByIDs ids = withTokenCheck $ do
   env <- ask
   uat <- withUAToken env
   let fullNames = T.intercalate "," (map mkFullNameFromID ids)
-  respBody <- liftIO $ runReq defaultHttpConfig $ do
+  respBody <- liftIO $ runReq' $ do
     let uri = https oauthUri /: "api" /: "info"
     let params = uat <> "id" =: fullNames
     response <- req GET uri NoReqBody lbsResponse params
@@ -420,7 +420,7 @@ addNewComment x body = withTokenCheck $ do
   env <- ask
   uat <- withUAToken env
   let fullName = mkFullNameFromID x
-  liftIO $ runReq defaultHttpConfig $ do
+  liftIO $ runReq' $ do
     let uri = https oauthUri /: "api" /: "comment"
     let body_params = "thing_id" =: fullName <> "text" =: body
     void $ req POST uri (ReqBodyUrlEnc body_params) ignoreResponse uat
@@ -467,7 +467,7 @@ getPostWithComments :: (MonadIO m) => ID Post -> RedditT m (Post, [CommentTree])
 getPostWithComments (PostID p) = withTokenCheck $ do
   env <- ask
   uat <- withUAToken env
-  respBody <- liftIO $ runReq defaultHttpConfig $ do
+  respBody <- liftIO $ runReq' $ do
     let uri = https oauthUri /: "comments" /: p
     response <- req GET uri NoReqBody lbsResponse uat
     pure (responseBody response)
@@ -489,7 +489,7 @@ getMoreChildren pid cids =
     else withTokenCheck $ do
       env <- ask
       uat <- withUAToken env
-      respBody <- liftIO $ runReq defaultHttpConfig $ do
+      respBody <- liftIO $ runReq' $ do
         let uri = https oauthUri /: "api" /: "morechildren"
         let query_params =
               uat
@@ -550,7 +550,7 @@ myAccount :: (MonadIO m) => RedditT m Account
 myAccount = withTokenCheck $ do
   env <- ask
   uat <- withUAToken env
-  respBody <- liftIO $ runReq defaultHttpConfig $ do
+  respBody <- liftIO $ runReq' $ do
     let uri = https oauthUri /: "api" /: "v1" /: "me"
     response <- req GET uri NoReqBody lbsResponse uat
     pure (responseBody response)
@@ -576,7 +576,7 @@ getAccountByName ::
 getAccountByName uname = withTokenCheck $ do
   env <- ask
   uat <- withUAToken env
-  respBody <- liftIO $ runReq defaultHttpConfig $ do
+  respBody <- liftIO $ runReq' $ do
     let uri = https oauthUri /: "user" /: uname /: "about"
     response <- req GET uri NoReqBody lbsResponse uat
     pure (responseBody response)
@@ -653,7 +653,7 @@ edit id newBody = withTokenCheck $ do
   let fullName = mkFullNameFromID id
   env <- ask
   uat <- withUAToken env
-  liftIO $ runReq defaultHttpConfig $ do
+  liftIO $ runReq' $ do
     let uri = https oauthUri /: "api" /: "editusertext"
     let body_params = "thing_id" =: fullName <> "text" =: newBody
     void $ req POST uri (ReqBodyUrlEnc body_params) ignoreResponse uat
@@ -668,7 +668,7 @@ delete id = withTokenCheck $ do
   let fullName = mkFullNameFromID id
   env <- ask
   uat <- withUAToken env
-  liftIO $ runReq defaultHttpConfig $ do
+  liftIO $ runReq' $ do
     let uri = https oauthUri /: "api" /: "del"
     let body_params = "id" =: fullName
     void $ req POST uri (ReqBodyUrlEnc body_params) ignoreResponse uat
@@ -686,7 +686,7 @@ remove id isSpam = withTokenCheck $ do
   let spam :: Text = if isSpam then "true" else "false"
   env <- ask
   uat <- withUAToken env
-  liftIO $ runReq defaultHttpConfig $ do
+  liftIO $ runReq' $ do
     let uri = https oauthUri /: "api" /: "remove"
     let body_params = "id" =: fullName <> "spam" =: spam
     void $ req POST uri (ReqBodyUrlEnc body_params) ignoreResponse uat
@@ -698,7 +698,7 @@ approve id = withTokenCheck $ do
   let fullName = mkFullNameFromID id
   env <- ask
   uat <- withUAToken env
-  liftIO $ runReq defaultHttpConfig $ do
+  liftIO $ runReq' $ do
     let uri = https oauthUri /: "api" /: "approve"
     let body_params = "id" =: fullName
     void $ req POST uri (ReqBodyUrlEnc body_params) ignoreResponse uat
@@ -723,7 +723,7 @@ getSubredditsByName s_names = withTokenCheck $ do
   env <- ask
   uat <- withUAToken env
   let allNames = T.intercalate "," s_names
-  respBody <- liftIO $ runReq defaultHttpConfig $ do
+  respBody <- liftIO $ runReq' $ do
     let uri = https oauthUri /: "api" /: "info"
     let req_params = uat <> "sr_name" =: allNames
     response <- req GET uri NoReqBody lbsResponse req_params
@@ -756,3 +756,8 @@ getSubredditByName s_name = do
 -- subreddit.
 --
 -- A simple usage example is provided in the 'Reddit.Example' module.
+
+-- | Run a Request with defaultHttpConfig (I don't think we change this
+-- anywhere), but wrap any thrown HttpExceptions in a RedditReqException.
+runReq' :: (MonadIO m) => Req a -> m a
+runReq' req = liftIO $ catch (runReq defaultHttpConfig req) (\(e :: HttpException) -> throwIO $ RedditReqException e)
