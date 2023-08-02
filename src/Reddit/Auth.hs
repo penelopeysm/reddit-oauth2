@@ -9,6 +9,7 @@ module Reddit.Auth
   ( Credentials (..),
     Token (..),
     getToken,
+    refresh,
     AuthUrlParams (..),
     mkRedditAuthURL,
     Scope (..),
@@ -28,6 +29,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
 import Data.Time.Clock
 import Network.HTTP.Req
+import Reddit.Exception
 import qualified Text.URI as URI
 
 -- | The @Credentials@ type contains all the information you need to
@@ -348,6 +350,24 @@ parseToken ti = do
 -- | Get a token using credentials. This is the core of 'Reddit.authenticate'.
 getToken :: Credentials -> ByteString -> IO Token
 getToken creds ua = getTokenInternal creds ua >>= parseToken
+
+-- | TODO: Clean this implementation up
+refresh :: Text -> Text -> Text -> Token -> IO Token
+refresh cId cSecret ua t = case tokenRefreshToken t of
+  Nothing -> throwIOApi "No refresh token available"
+  Just rt -> do
+    let uri = https "www.reddit.com" /: "api" /: "v1" /: "access_token"
+    let body =
+          ReqBodyUrlEnc
+            ( "grant_type"
+                =: ("refresh_token" :: Text)
+                <> "refresh_token"
+                  =: rt)
+    let req_params =
+          header "user-agent" (TE.encodeUtf8 ua)
+            <> basicAuth (TE.encodeUtf8 cId) (TE.encodeUtf8 cSecret)
+    response <- runReq defaultHttpConfig $ req POST uri body lbsResponse req_params
+    throwDecode (responseBody response) >>= parseToken
 
 -- * Code flow ('authorisation code grant')
 

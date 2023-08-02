@@ -16,9 +16,9 @@ module Reddit.Types
   ( RedditT (..),
     RedditEnv (..),
     runRedditT,
-    RedditException (..),
-    throwIOJson,
-    throwIOApi,
+    Reddit.Exception.RedditException (..),
+    Reddit.Exception.throwIOJson,
+    Reddit.Exception.throwIOApi,
     HiddenText (..),
     ID (..),
     Listing (..),
@@ -60,6 +60,7 @@ import qualified Data.Text as T
 import Data.Time.Clock
 import Data.Time.Clock.POSIX (posixSecondsToUTCTime)
 import Network.HTTP.Req
+import Reddit.Exception
 import Reddit.Auth
 
 -- * Reddit monad transformer
@@ -96,26 +97,6 @@ instance (MonadFail m) => MonadFail (RedditT m) where
 -- authentication (see [Authentication](#g:authentication)).
 runRedditT :: RedditEnv -> RedditT m a -> m a
 runRedditT env = (`runReaderT` env) . unRedditT
-
--- * Exceptions
-
--- | The type of exceptions thrown by this library.
-data RedditException
-  = -- | Network request that failed.
-    RedditReqException HttpException
-  | -- | Invalid JSON returned by the Reddit API.
-    RedditJsonException Text
-  | -- | Some other kind of Reddit API error.
-    RedditApiException Text
-  deriving (Show)
-
-instance Exception RedditException
-
-throwIOJson :: (MonadIO m) => String -> m a
-throwIOJson = liftIO . throwIO . RedditJsonException . T.pack
-
-throwIOApi :: (MonadIO m) => String -> m a
-throwIOApi = liftIO . throwIO . RedditApiException . T.pack
 
 -- * Other stuff
 
