@@ -1,3 +1,10 @@
+-- |
+-- Module      : Reddit.Auth
+-- Description : Exceptions thrown by this library
+-- Copyright   : (c) Penelope Yong 2023
+-- License     : MIT
+-- Maintainer  : penelopeysm@gmail.com
+-- Stability   : experimental
 module Reddit.Exception (RedditException (..), throwIOJson, throwIOApi) where
 
 import Control.Exception (Exception, throwIO)

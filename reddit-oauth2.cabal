@@ -28,6 +28,7 @@ library
       Reddit.Example
 
     other-modules:
+      Reddit.Exception
       Reddit.Queue
       Reddit.Stream
       Reddit.Types
