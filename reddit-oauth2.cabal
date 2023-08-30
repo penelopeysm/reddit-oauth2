@@ -37,6 +37,7 @@ library
       FlexibleInstances
       GADTs
       GeneralizedNewtypeDeriving
+      LambdaCase
       OverloadedStrings
       RecordWildCards
       ScopedTypeVariables

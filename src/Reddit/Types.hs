@@ -60,8 +60,8 @@ import qualified Data.Text as T
 import Data.Time.Clock
 import Data.Time.Clock.POSIX (posixSecondsToUTCTime)
 import Network.HTTP.Req
-import Reddit.Exception
 import Reddit.Auth
+import Reddit.Exception
 
 -- * Reddit monad transformer
 
@@ -463,6 +463,13 @@ instance FromJSON Account where
 
 -- Post
 
+data PostDeletedStatus
+  = -- | Deleted by the author
+    SelfDeleted
+  | -- | This is a catch-all for any other reason returned by the API. Unfortunately, because of the lack of documentation, I don't know what values are valid. If you get one of these, please report it.
+    OtherReason Text
+  deriving (Eq, Ord, Show)
+
 -- | A single post.
 --
 -- Note that the @Eq@ and @Ord@ instances for @Post@ only compare the post ID.
@@ -499,6 +506,9 @@ data Post = Post
     postHidden :: Bool,
     postLocked :: Bool,
     postStickied :: Bool,
+    -- | Description of whether (and how) the post was deleted. @Nothing@ if not
+    -- deleted.
+    postDeleted :: Maybe PostDeletedStatus,
     -- | If this post is a crosspost, then this contains @Just@ the post ID of
     -- the crosspost parent. Otherwise, this is @Nothing@.
     postCrosspostParentId :: Maybe (ID Post),
@@ -539,6 +549,11 @@ instance FromJSON Post where
     postHidden <- v .: "hidden"
     postLocked <- v .: "locked"
     postStickied <- v .: "stickied"
+    postDeleted <-
+      v .:? "removed_by_category" >>= \case
+        Just "deleted" -> pure (Just SelfDeleted)
+        Just s -> pure (Just (OtherReason s))
+        Nothing -> pure Nothing
     postCrosspostParentId <- v .:? "crosspost_parent"
     postCrosspostParents <- v .:? "crosspost_parent_list"
     pure $ Post {..}
