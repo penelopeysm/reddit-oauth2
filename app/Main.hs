@@ -31,8 +31,8 @@ printTree n (ActualComment c rpls) = do
 
 main :: IO ()
 main = do
-  ownerUsername <- getEnvAsText "REDDIT_USERNAME"
-  ownerPassword <- getEnvAsText "REDDIT_PASSWORD"
+  ownerUsername <- getEnvAsText "REDDIT_ORIG_USERNAME"
+  ownerPassword <- getEnvAsText "REDDIT_ORIG_PASSWORD"
   ownerClientId <- getEnvAsText "REDDIT_ID"
   ownerClientSecret <- getEnvAsText "REDDIT_SECRET"
   let userAgent = "github:penelopeysm/reddit-oauth2 by /u/is_a_togekiss"
@@ -42,5 +42,4 @@ main = do
   hSetBuffering stdout NoBuffering
 
   runRedditT env $ do
-    post <- getPost (PostID "1656d5x")
-    liftIO $ print post
+    unvote (PostID "aaaaaaa")

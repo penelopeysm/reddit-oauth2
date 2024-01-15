@@ -229,7 +229,7 @@ parseScopes t = case T.split (\c -> c == ',' || c == ' ') t of
 -- | Construct a canonical text representation of a set of @Scope@s, which can
 -- be used as a query parameter for 'mkRedditAuthURL'.
 showScopes :: S.Set Scope -> Text
-showScopes = T.intercalate " " . map showOneScope . S.toList
+showScopes = T.intercalate "+" . map showOneScope . S.toList
   where
     showOneScope s = case s of
       ScopeAccount -> "account"

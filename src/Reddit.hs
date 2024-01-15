@@ -53,6 +53,9 @@ module Reddit
     Reddit.Types.CommentTree (..),
     getComments,
     getComment,
+    upvote,
+    downvote,
+    unvote,
     addNewComment,
     accountComments,
     subredditComments,
@@ -404,6 +407,36 @@ getComments = getThingsByIDs
 -- 'getComments' also applies here.
 getComment :: (MonadIO m) => ID Comment -> RedditT m Comment
 getComment = getThingByID
+
+-- | Helper data type
+data VoteType = Upvote | Downvote | Unvote deriving (Show, Eq)
+
+-- | Helper function
+_vote :: (CanCommentOn a, MonadIO m) => ID a -> VoteType -> RedditT m ()
+_vote x vt = withTokenCheck $ do
+  let voteDir :: Text = case vt of
+        Upvote -> "1"
+        Downvote -> "-1"
+        Unvote -> "0"
+  env <- ask
+  uat <- withUAToken env
+  let fullName = mkFullNameFromID x
+  liftIO $ runReq' $ do
+    let uri = https oauthUri /: "api" /: "vote"
+    let body_params = "id" =: fullName <> "dir" =: voteDir
+    void $ req POST uri (ReqBodyUrlEnc body_params) ignoreResponse uat
+
+-- | Upvote a post or comment.
+upvote :: (CanCommentOn a, MonadIO m) => ID a -> RedditT m ()
+upvote x = _vote x Upvote
+
+-- | Downvote a post or comment.
+downvote :: (CanCommentOn a, MonadIO m) => ID a -> RedditT m ()
+downvote x = _vote x Downvote
+
+-- | Remove a previous vote from a post or comment.
+unvote :: (CanCommentOn a, MonadIO m) => ID a -> RedditT m ()
+unvote x = _vote x Unvote
 
 -- | Add a new comment as a reply to an existing post or comment.
 --
