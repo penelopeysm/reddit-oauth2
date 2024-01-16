@@ -109,7 +109,7 @@ module Reddit
     -- * Other types
     Reddit.Types.ID (..),
     Reddit.Types.HasID (..),
-    Reddit.Types.CanCommentOn (..),
+    Reddit.Types.IsCommentOrPost (..),
     Reddit.Types.EditedUTCTime (..),
   )
 where
@@ -412,7 +412,7 @@ getComment = getThingByID
 data VoteType = Upvote | Downvote | Unvote deriving (Show, Eq)
 
 -- | Helper function
-_vote :: (CanCommentOn a, MonadIO m) => ID a -> VoteType -> RedditT m ()
+_vote :: (IsCommentOrPost a, MonadIO m) => ID a -> VoteType -> RedditT m ()
 _vote x vt = withTokenCheck $ do
   let voteDir :: Text = case vt of
         Upvote -> "1"
@@ -427,23 +427,23 @@ _vote x vt = withTokenCheck $ do
     void $ req POST uri (ReqBodyUrlEnc body_params) ignoreResponse uat
 
 -- | Upvote a post or comment.
-upvote :: (CanCommentOn a, MonadIO m) => ID a -> RedditT m ()
+upvote :: (IsCommentOrPost a, MonadIO m) => ID a -> RedditT m ()
 upvote x = _vote x Upvote
 
 -- | Downvote a post or comment.
-downvote :: (CanCommentOn a, MonadIO m) => ID a -> RedditT m ()
+downvote :: (IsCommentOrPost a, MonadIO m) => ID a -> RedditT m ()
 downvote x = _vote x Downvote
 
 -- | Remove a previous vote from a post or comment.
-unvote :: (CanCommentOn a, MonadIO m) => ID a -> RedditT m ()
+unvote :: (IsCommentOrPost a, MonadIO m) => ID a -> RedditT m ()
 unvote x = _vote x Unvote
 
 -- | Add a new comment as a reply to an existing post or comment.
 --
--- The 'CanCommentOn' constraint ensures that you can only reply to comments and
+-- The 'IsCommentOrPost' constraint ensures that you can only reply to comments and
 -- posts.
 addNewComment ::
-  (CanCommentOn a, MonadIO m) =>
+  (IsCommentOrPost a, MonadIO m) =>
   -- | The ID of the thing being replied to.
   ID a ->
   -- | The contents of the comment (in Markdown)
@@ -681,7 +681,7 @@ subredditPosts n sr sort = do
 
 -- | Edit the contents of a comment or a text post. You must be authenticated as
 -- the person who posted it.
-edit :: (CanCommentOn a, MonadIO m) => ID a -> Text -> RedditT m ()
+edit :: (IsCommentOrPost a, MonadIO m) => ID a -> Text -> RedditT m ()
 edit id newBody = withTokenCheck $ do
   let fullName = mkFullNameFromID id
   env <- ask
@@ -696,7 +696,7 @@ edit id newBody = withTokenCheck $ do
 --
 -- If you want to remove a post or a comment on a subreddit you moderate, use
 -- 'remove' instead.
-delete :: (CanCommentOn a, MonadIO m) => ID a -> RedditT m ()
+delete :: (IsCommentOrPost a, MonadIO m) => ID a -> RedditT m ()
 delete id = withTokenCheck $ do
   let fullName = mkFullNameFromID id
   env <- ask
@@ -709,7 +709,7 @@ delete id = withTokenCheck $ do
 -- | As a moderator, remove a post or a comment. This is the inverse of
 -- 'approve'.
 remove ::
-  (CanCommentOn a, MonadIO m) =>
+  (IsCommentOrPost a, MonadIO m) =>
   ID a ->
   -- | Whether the thing being removed is spam.
   Bool ->
@@ -726,7 +726,7 @@ remove id isSpam = withTokenCheck $ do
 
 -- | As a moderator, approve a post or a comment. This is the inverse of
 -- 'remove'.
-approve :: (CanCommentOn a, MonadIO m) => ID a -> RedditT m ()
+approve :: (IsCommentOrPost a, MonadIO m) => ID a -> RedditT m ()
 approve id = withTokenCheck $ do
   let fullName = mkFullNameFromID id
   env <- ask

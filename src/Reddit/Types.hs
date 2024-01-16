@@ -29,7 +29,7 @@ module Reddit.Types
     Message (..),
     Subreddit (..),
     Award (..),
-    CanCommentOn (..),
+    IsCommentOrPost (..),
     HasID (..),
     EditedUTCTime (..),
     MoreChildren (..),
@@ -110,14 +110,15 @@ instance Show HiddenText where
 redditURL :: Text
 redditURL = "https://reddit.com"
 
--- | Reddit \'things\' have an ID, which (in the raw JSON) is a string prefixed
--- by @"t1_"@, @"t2_"@, @"t3_"@... depending on what type of object it is. In
--- this library, IDs are stored __without__ this prefix; so @CommentID "abcde"@
--- is equivalent to Reddit's @"t1_abcde"@.
+-- | Reddit \'things\' have a 'fullname', sometimes also called 'ID' in the
+-- docs,, which is a string prefixed by @"t1_"@, @"t2_"@, @"t3_"@... depending
+-- on what type of object it is.
 --
--- By the way, this is my first time dabbling with GADTs in a library, so I'm
--- not completely sure if it's the correct (or the smartest) way to do it.
--- Please get in touch if you want to tell me about alternatives.
+-- In this library, IDs are stored __without__ this prefix; so @CommentID
+-- "abcde"@ is equivalent to Reddit's @"t1_abcde"@.
+--
+-- IDs can be constructed from string literals using the @OverloadedStrings@
+-- extension.
 data ID a where
   -- | t1_
   CommentID :: {unCommentID :: Text} -> ID Comment
@@ -190,12 +191,13 @@ instance HasID Award where
   mkFullName awd = mkFullNameFromID (awardId awd)
   mkFullNameFromID (AwardID a_id) = "t6_" <> a_id
 
--- | Things that can be commented on (i.e. comments and posts).
-class (HasID a) => CanCommentOn a
+-- | Comments and posts are special because they can be acted upon differently,
+-- e.g. by commenting or voting on them.
+class (HasID a) => IsCommentOrPost a
 
-instance CanCommentOn Comment
+instance IsCommentOrPost Comment
 
-instance CanCommentOn Post
+instance IsCommentOrPost Post
 
 instance FromJSON (ID Comment) where
   parseJSON = withText "commentID" $ \t ->
