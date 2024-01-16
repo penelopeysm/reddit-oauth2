@@ -51,6 +51,7 @@ import Control.Monad.Trans.Reader (ReaderT (..))
 import Data.Aeson
 import Data.Aeson.Types (Parser (..))
 import Data.ByteString (ByteString)
+import Data.String (IsString (..))
 import qualified Data.IORef as R
 import Data.List (foldl')
 import Data.Monoid (First (..), getFirst)
@@ -136,6 +137,24 @@ deriving instance (Show a) => Show (ID a)
 deriving instance (Eq a) => Eq (ID a)
 
 deriving instance (Ord a) => Ord (ID a)
+
+instance IsString (ID Comment) where
+  fromString = CommentID . T.pack
+
+instance IsString (ID Account) where
+  fromString = AccountID . T.pack
+
+instance IsString (ID Post) where
+  fromString = PostID . T.pack
+
+instance IsString (ID Message) where
+  fromString = MessageID . T.pack
+
+instance IsString (ID Subreddit) where
+  fromString = SubredditID . T.pack
+
+instance IsString (ID Award) where
+  fromString = AwardID . T.pack
 
 -- | Things which have an ID.
 class HasID a where
