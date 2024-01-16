@@ -351,8 +351,9 @@ parseToken ti = do
 getToken :: Credentials -> ByteString -> IO Token
 getToken creds ua = getTokenInternal creds ua >>= parseToken
 
--- | TODO: Clean this implementation up
-refresh :: Text -> Text -> Text -> Token -> IO Token
+-- | Get a new token from an old one. The refresh token must be available (i.e.
+-- tokenRefreshToken must not be @Nothing@), otherwise throws an exception.
+refresh :: Text -> Text -> ByteString -> Token -> IO Token
 refresh cId cSecret ua t = case tokenRefreshToken t of
   Nothing -> throwIOApi "No refresh token available"
   Just rt -> do
@@ -362,9 +363,10 @@ refresh cId cSecret ua t = case tokenRefreshToken t of
             ( "grant_type"
                 =: ("refresh_token" :: Text)
                 <> "refresh_token"
-                  =: rt)
+                  =: rt
+            )
     let req_params =
-          header "user-agent" (TE.encodeUtf8 ua)
+          header "user-agent" ua
             <> basicAuth (TE.encodeUtf8 cId) (TE.encodeUtf8 cSecret)
     response <- runReq defaultHttpConfig $ req POST uri body lbsResponse req_params
     throwDecode (responseBody response) >>= parseToken

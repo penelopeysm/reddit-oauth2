@@ -238,11 +238,21 @@ authenticate creds ua = do
 -- RedditEnv with an updated token.
 reauthenticate :: RedditEnv -> IO ()
 reauthenticate env = do
-  case envCredentials env of
-    c@(Auth.OwnerCredentials {..}) -> do
-      token <- Auth.getToken c (envUserAgent env)
+  let creds = envCredentials env
+  case creds of
+    -- 'Resource owner' flow: simply obtain a new token using the saved
+    -- credentials.
+    Auth.OwnerCredentials {..} -> do
+      token <- Auth.getToken creds (envUserAgent env)
       R.writeIORef (envTokenRef env) token
-    _ -> error "Not supported"
+    -- 'Code grant' flow: we need to use the refresh token (if available) to get
+    -- a new access token. Note: Auth.refresh throws if the refresh token is not
+    -- available
+    Auth.CodeGrantCredentials {..} -> do
+      let ua = envUserAgent env
+      oldToken <- R.readIORef (envTokenRef env)
+      newToken <- Auth.refresh codeGrantClientId codeGrantClientSecret ua oldToken
+      R.writeIORef (envTokenRef env) newToken
 
 -- | Perform a RedditT IO action, but before running it, check the validity of the
 -- existing token and reauthenticate if it has expired already.
